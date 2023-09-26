@@ -1,0 +1,6 @@
+[versions]
+ktor = "2.3.4"
+
+[libraries]
+client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+socket = { group = "io.ktor", name = "ktor-network", version.ref = "ktor" }
