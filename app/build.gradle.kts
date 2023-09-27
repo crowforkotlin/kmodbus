@@ -9,7 +9,6 @@ plugins {
 }
 
 android {
-
     namespace = "com.crow.modbus"
 
     compileSdk = 34
@@ -64,16 +63,13 @@ android {
             path = file("CMakeLists.txt")
         }
     }
-
 }
 
 dependencies {
-
     implementation(libs.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)
-
     implementation(ktor.client.core)
     implementation(ktor.socket)
 }

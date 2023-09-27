@@ -5,7 +5,6 @@ package com.crow.modbus.serialport
 import java.io.FileDescriptor
 
 /*************************
- * @Machine: RedmiBook Pro 15 Win11
  * @Package: com.crow.modbus
  * @Time: 2023/9/23 10:32
  * @Author: CrowForKotlin

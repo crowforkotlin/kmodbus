@@ -112,17 +112,16 @@ JNIEXPORT jobject JNICALL Java_com_crow_modbus_serialport_SerialPort_open
     speed_t speed;
     jobject mFileDescriptor;
 
-    /* Check arguments */
+    // 校验波特率 是否正确
     {
         speed = getBaudrate(baudrate);
         if (speed == -1) {
-            /* TODO: throw an exception */
-            LOGE("Invalid baudrate");
+            LOGE("Invalid baudrate！");
             return NULL;
         }
     }
 
-    /* Opening device */
+    // 开启串口 O_RDWR 开启读写权限
     {
         jboolean iscopy;
         const char *path_utf = (*env)->GetStringUTFChars(env, path, &iscopy);
@@ -131,29 +130,31 @@ JNIEXPORT jobject JNICALL Java_com_crow_modbus_serialport_SerialPort_open
         LOGD("open() fd = %d", fd);
         (*env)->ReleaseStringUTFChars(env, path, path_utf);
         if (fd == -1) {
-            /* Throw an exception */
             LOGE("Cannot open port");
-            /* TODO: throw an exception */
             return NULL;
         }
     }
 
-    /* Configure device */
+    // 配置串口
     {
         struct termios cfg;
         LOGD("Configuring serial port");
-
+        // 尝试获取文件描述符 fd标识 并 存储到 cfg结构体中
         if (tcgetattr(fd, &cfg)) {
             LOGE("tcgetattr() failed");
             close(fd);
-            /* TODO: throw an exception */
             return NULL;
         }
+
+        // 设置原始模式，禁用了自动特殊字符处理、奇偶校验等功能，以便更精确地控制串口数据的传输，但需要应用程序自行处理数据。
         cfmakeraw(&cfg);
+
+        // 设置输入输出波特率
         cfsetispeed(&cfg, speed);
         cfsetospeed(&cfg, speed);
+
         /* Set data bits (5, 6, 7, 8 bits)
-        CSIZE        Bit mask for data bits
+        CSIZE Bit mask for data bits
         */
         cfg.c_cflag &= ~CSIZE;
         switch (data_bit) {
@@ -178,19 +179,15 @@ JNIEXPORT jobject JNICALL Java_com_crow_modbus_serialport_SerialPort_open
         else /* 2 */
             cfg.c_cflag |= CSTOPB;
 
-        /* PARENB       Enable parity bit
-       PARODD       Use odd parity instead of even */
+        // 设置校验位模式       Enable parity bit
         if (parity == 0) {
             LOGD("NONE");
-            /* None */
             cfg.c_cflag &= ~PARENB;
         } else if (parity == 1) {
-            /* Even */
             LOGD("Even");
             cfg.c_cflag |= PARENB;
             cfg.c_cflag &= ~PARODD;
         } else {
-            /* Odd */
             LOGD("ODD");
             cfg.c_cflag |= PARENB;
             cfg.c_cflag |= PARODD;
@@ -198,13 +195,13 @@ JNIEXPORT jobject JNICALL Java_com_crow_modbus_serialport_SerialPort_open
         if (tcsetattr(fd, TCSANOW, &cfg)) {
             LOGE("tcsetattr() failed");
             close(fd);
-            /* TODO: throw an exception */
             return NULL;
         }
     }
 
-    /* Create a corresponding file descriptor */
+    // 创建文件描述符
     {
+        // 获取类 、 构造函数ID， 字段ID 最后 实例化FileDescriptor 后 并设置字段
         jclass cFileDescriptor = (*env)->FindClass(env, "java/io/FileDescriptor");
         jmethodID iFileDescriptor = (*env)->GetMethodID(env, cFileDescriptor, "<init>", "()V");
         jfieldID descriptorID = (*env)->GetFieldID(env, cFileDescriptor, "descriptor", "I");
@@ -220,8 +217,7 @@ JNIEXPORT jobject JNICALL Java_com_crow_modbus_serialport_SerialPort_open
  * Method:    close
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_com_crow_modbus_serialport_SerialPort_close
-        (JNIEnv *env, jobject thiz) {
+JNIEXPORT void JNICALL Java_com_crow_modbus_serialport_SerialPort_close(JNIEnv *env, jobject thiz) {
     jclass SerialPortClass = (*env)->GetObjectClass(env, thiz);
     jclass FileDescriptorClass = (*env)->FindClass(env, "java/io/FileDescriptor");
 
@@ -234,5 +230,3 @@ JNIEXPORT void JNICALL Java_com_crow_modbus_serialport_SerialPort_close
     LOGD("close(fd = %d)", descriptor);
     close(descriptor);
 }
-
-JNIEXPORT void JNICALL
