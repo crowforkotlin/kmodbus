@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
 
         mSerialPort.openSerialPort("/dev/ttyS0", 9600)
 
-        val packet = ModbusRtuMaster.build(1, ModbusFunction.WRITE_COILS, 0, 9, 0, intArrayOf(1,1,1, 1,1,1,1,1,1,))
+        val packet = ModbusRtuMaster.build(1, ModbusFunction.WRITE_SINGLE_COIL, 0, 9, 0, intArrayOf(1,1,1, 1,1,1,1,1,1,))
         timer(period = 1000L) {
 //             mSerialPort.writeBytes(byteArrayOf(0x01, 0x06, 0x00, 0x00, 0x00, 0x01, 0x48, 0x0A))
              mSerialPort.writeBytes(packet)

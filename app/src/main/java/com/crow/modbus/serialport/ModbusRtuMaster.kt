@@ -105,9 +105,8 @@ class ModbusRtuMaster private constructor() {
                 }
                 else -> throw ModbusException(ModbusErrorType.ModbusError, "unknown function code!")
             }
+            //计算CRC校验码
             var bytes: ByteArray = output.toByteArray()
-            //计算CRC校验码
-            //计算CRC校验码
             val crc: Int = CRC16.compute(bytes)
             output.writeInt16Reversal(crc)
             bytes = output.toByteArray()

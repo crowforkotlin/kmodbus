@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)
+    implementation(libs.gson)
     implementation(ktor.client.core)
     implementation(ktor.socket)
 }
