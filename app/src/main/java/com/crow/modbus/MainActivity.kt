@@ -6,7 +6,7 @@ package com.crow.modbus
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.crow.modbus.serialport.ModbusFunction
-import com.crow.modbus.serialport.ModbusRtuMaster
+import com.crow.modbus.serialport.KModbusRtuMaster
 import com.crow.modbus.serialport.SerialPortManager
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.Socket
@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
 
         mSerialPort.openSerialPort("/dev/ttyS0", 9600)
 
-        val packet = ModbusRtuMaster.build(1, ModbusFunction.WRITE_SINGLE_COIL, 0, 9, 0, intArrayOf(1,1,1, 1,1,1,1,1,1,))
+        val packet = KModbusRtuMaster.getInstance().build(1, ModbusFunction.WRITE_COILS, 0, 9, 0, intArrayOf(1,1,1,1,1,1,1,1,1))
         timer(period = 1000L) {
 //             mSerialPort.writeBytes(byteArrayOf(0x01, 0x06, 0x00, 0x00, 0x00, 0x01, 0x48, 0x0A))
              mSerialPort.writeBytes(packet)
@@ -75,11 +75,7 @@ class MainActivity : AppCompatActivity() {
 }
 
 suspend fun main() {
-    val byte = byteArrayOf(0,1)
-    val data = ByteArray(1)
-    System.arraycopy(byte, 0 , data, 0, 2)
-    println(data.toHexString())
-    //    onTcpModbusPoll()
+    onTcpModbusPoll()
     delay(100000)
 }
 
@@ -106,7 +102,8 @@ private suspend fun onTcpModbusPoll() {
         }
     }
     IO.launch {
-        output.writeFully(byteArrayOf(0x00 ,0x31 ,0x00  ,0x00  ,0x00  ,0x06  ,0x01  ,0x05  ,0x00  ,0x00  ,0xFF.toByte()  ,0x00))
+        // 写 线圈1
+        output.writeFully(byteArrayOf(0x00,0x01,0x00 ,0x00 ,0x00, 0x06, 0x01, 0x05, 0x00, 0x00, 0xFF.toByte(), 0x00))
         logger("发送成功")
     }
 }
