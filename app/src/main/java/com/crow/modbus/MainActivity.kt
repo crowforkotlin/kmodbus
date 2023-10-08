@@ -1,5 +1,7 @@
 @file:Suppress("PrivatePropertyName", "SpellCheckingInspection", "LocalVariableName")
-@file:OptIn(ExperimentalStdlibApi::class, ExperimentalStdlibApi::class)
+@file:OptIn(ExperimentalStdlibApi::class, ExperimentalStdlibApi::class,
+    ExperimentalStdlibApi::class
+)
 
 package com.crow.modbus
 
@@ -7,6 +9,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.crow.modbus.serialport.ModbusFunction
 import com.crow.modbus.serialport.KModbusRtuMaster
+import com.crow.modbus.serialport.KModbusTCPMaster
 import com.crow.modbus.serialport.SerialPortManager
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.Socket
@@ -36,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
         mSerialPort.openSerialPort("/dev/ttyS0", 9600)
 
-        val packet = KModbusRtuMaster.getInstance().build(1, ModbusFunction.WRITE_COILS, 0, 9, 0, intArrayOf(1,1,1,1,1,1,1,1,1))
+        val packet = KModbusRtuMaster.getInstance().build(ModbusFunction.WRITE_COILS,1, 0, 9, values = intArrayOf(1,1,1,1,1,1,1,1,1))
         timer(period = 1000L) {
 //             mSerialPort.writeBytes(byteArrayOf(0x01, 0x06, 0x00, 0x00, 0x00, 0x01, 0x48, 0x0A))
              mSerialPort.writeBytes(packet)
@@ -84,6 +87,7 @@ private suspend fun onTcpModbusPoll() {
     fun logger(message: Any?) = println(message)
 
     val IO = CoroutineScope(Dispatchers.IO)
+    val data = KModbusTCPMaster.getInstance().build(ModbusFunction.READ_HOLDING_REGISTERS, 1,1, 1)
     val socket: Socket =
         runCatching {
             aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("192.168.1.100", 502)
@@ -96,14 +100,14 @@ private suspend fun onTcpModbusPoll() {
     IO.launch {
         while (true) {
             val buffer = ByteArray(2048)
-            input.readAvailable(buffer)
-            logger(buffer.map { it.toHexString() })
+            val size = input.readAvailable(buffer)
+            logger(buffer.take(size).map { it.toHexString() })
             delay(1000L)
         }
     }
     IO.launch {
         // 写 线圈1
-        output.writeFully(byteArrayOf(0x00,0x01,0x00 ,0x00 ,0x00, 0x06, 0x01, 0x05, 0x00, 0x00, 0xFF.toByte(), 0x00))
+        output.writeFully(data)
         logger("发送成功")
     }
 }

@@ -13,18 +13,18 @@ import com.crow.modbus.ext.Bytes
 open class KModbus protected constructor() {
 
     @OptIn(ExperimentalStdlibApi::class)
-    fun buildOutput(slave: Int, function: ModbusFunction, startAddress: Int, count: Int, value: Int, values: IntArray): BytesOutput {
+    fun buildOutput(slave: Int, function: ModbusFunction, startAddress: Int, count: Int, value: Int?, values: IntArray?, isTcp: Boolean = false): BytesOutput {
 
         //检查参数是否符合协议规定
         when {
             slave !in 0..0xFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid slave $slave")
-            startAddress !in 0..0xFFFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid starting_address $startAddress")
-            count !in 1..0xFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid quantity_of_x $count")
+            startAddress !in 0..0xFFFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid startAddress $startAddress")
+            count !in 1..0xFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid count $count")
         }
 
         val output = BytesOutput()
 
-        output.writeInt8(slave)
+        if (!isTcp) output.writeInt8(slave)
 
         when(function) {
 
@@ -36,7 +36,7 @@ open class KModbus protected constructor() {
             }
             ModbusFunction.WRITE_SINGLE_COIL, ModbusFunction.WRITE_SINGLE_REGISTER -> {
 
-                var valueCopy = value
+                var valueCopy = value ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function\t , Data must be passed in!")
 
                 //写单个寄存器指令
                 if (function == ModbusFunction.WRITE_SINGLE_COIL) if (value != 0) valueCopy = 0xff00 //如果为线圈寄存器（写1时为 FF 00,写0时为00 00）
@@ -54,9 +54,12 @@ open class KModbus protected constructor() {
                 output.writeInt8(2 * count)
 
                 //写入数据
-                values.forEach { output.writeInt16(it) }
+                (values ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function\t , Data must be passed in!")).forEach { output.writeInt16(it) }
             }
             ModbusFunction.WRITE_COILS -> {
+
+                if (values == null) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function\t , Data must be passed in!")
+
                 //写多个线圈寄存器
                 output.writeInt8(function.mCode)
                 output.writeInt16(startAddress)
