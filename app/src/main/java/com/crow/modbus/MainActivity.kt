@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         mSerialPort.readBytes { bytes -> logger("ReadBytes ${bytes.map { it.toHexString() }}") }
 
 
-        var revValues: Boolean = false
+        var revValues = false
         timer(period = 1000) {
             openOutput((if(revValues) intArrayOf(0,0,0,0,0,0,0,0,0) else intArrayOf(1,1,1,1,1,1,1,1,1)).also { revValues = !revValues })
         }
@@ -53,8 +53,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openOutput(values: IntArray) {
 //        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, values = values))
-        val packet = kModbusASCIIMaster.build(ModbusFunction.WRITE_SINGLE_REGISTER,1, 0, 1, value = 1, values = values)
-        mSerialPort.writeBytes(packet)
+        mSerialPort.writeBytes(kModbusASCIIMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, value = 1, values = values))
     }
 }
 
@@ -63,7 +62,8 @@ suspend fun main() { onTcpModbusPoll().join() }
 private suspend fun onTcpModbusPoll(): Job {
     fun logger(message: Any?) = println(message)
     val IO = CoroutineScope(Dispatchers.IO)
-    val data = KModbusTCPMaster.getInstance().build(ModbusFunction.WRITE_SINGLE_REGISTER, 1,1, 1, value = 1)
+    val data = KModbusASCIIMaster.getInstance().build(ModbusFunction.WRITE_SINGLE_COIL, 1,1, 1, value = 1)
+    logger(data.map { it.toHexString() })
     val socket: Socket = runCatching { aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("192.168.1.100", 502) }
             .onFailure { logger("连接失败！") }
             .onSuccess { logger("连接成功！") }

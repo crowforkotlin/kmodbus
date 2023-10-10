@@ -473,10 +473,8 @@ fun fromAsciiIntLittleEndian_bit(value: Int): ByteArray {
 }
 
 fun toAsciiHexByte(value: Byte, stream: ByteArrayOutputStream) {
-    val high = ((value.toInt() shr 4) and 0x0F) + baseASCII_0
-    val low = (value.toInt() and 0x0F) + baseASCII_0
-    stream.write(high)
-    stream.write(low)
+    stream.write(toAsciiInt((value.toInt() shr 4) and 0x0F))
+    stream.write(toAsciiInt(value.toInt() and 0x0F))
 }
 
 fun toAsciiHexBytes(data: ByteArray): ByteArray {
