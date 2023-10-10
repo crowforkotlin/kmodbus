@@ -1,6 +1,11 @@
+@file:Suppress("SpellCheckingInspection")
+
 package com.crow.modbus.serialport
 
-import com.crow.modbus.ext.Bytes
+import com.crow.base.ext.Bytes
+import com.crow.base.ext.fromAsciiInt16
+import com.crow.base.ext.fromAsciiInt8
+import kotlin.experimental.inv
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -15,6 +20,7 @@ open class KModbus protected constructor() {
     @OptIn(ExperimentalStdlibApi::class)
     fun buildOutput(slave: Int, function: ModbusFunction, startAddress: Int, count: Int, value: Int?, values: IntArray?, isTcp: Boolean = false): BytesOutput {
 
+
         //检查参数是否符合协议规定
         when {
             slave !in 0..0xFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid slave $slave")
@@ -24,7 +30,10 @@ open class KModbus protected constructor() {
 
         val output = BytesOutput()
 
-        if (!isTcp) output.writeInt8(slave)
+
+        if (!isTcp) {
+            output.writeInt8(slave)
+        }
 
         when(function) {
 
@@ -54,16 +63,12 @@ open class KModbus protected constructor() {
                 output.writeInt8(2 * count)
 
                 //写入数据
-                (values ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function\t , Data must be passed in!")).forEach { output.writeInt16(it) }
+                (values ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in!")).forEach { output.writeInt16(it) }
             }
             ModbusFunction.WRITE_COILS -> {
 
-                if (values == null) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function\t , Data must be passed in!")
+                if (values == null) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in!")
 
-                //写多个线圈寄存器
-                output.writeInt8(function.mCode)
-                output.writeInt16(startAddress)
-                output.writeInt16(count)
                 //计算写入字节数
                 var writeByteCount: Int = count / 8  // 8个线圈 代表 一个字节
 
@@ -72,6 +77,10 @@ open class KModbus protected constructor() {
                     writeByteCount += 1
                 }
 
+                //写多个线圈寄存器
+                output.writeInt8(function.mCode)
+                output.writeInt16(startAddress)
+                output.writeInt16(count)
                 output.writeInt8(writeByteCount)
 
                 var index = 0
@@ -92,6 +101,7 @@ open class KModbus protected constructor() {
                     }
                     //数据反转 对于是否要反转要看你传过来的数据，如果高低位顺序正确则不用反转
                     splitData = splitData.reversedArray()
+
                     //写入拆分数组
                     output.writeInt8(toDecimal(splitData))
                     start = index
@@ -103,6 +113,7 @@ open class KModbus protected constructor() {
                 System.arraycopy(values, index, tData, 0, last)
                 //数据反转 对于是否要反转要看你传过来的数据，如果高低位顺序正确则不用反转
                 tData = tData!!.reversedArray()
+
                 output.writeInt8(toDecimal(tData))
             }
             else -> throw ModbusException(ModbusErrorType.ModbusError, "unknown function code!")
@@ -117,6 +128,17 @@ open class KModbus protected constructor() {
         val crc: Int = CRC16.compute(bytes)
         output.writeInt16Reversal(crc)
     }
+
+    fun toCalculateLRC(data: ByteArray): Int {
+        var iTmp = 0
+        for (x in data) {
+            iTmp += x.toInt()
+        }
+        iTmp %= 256
+        iTmp = (iTmp.inv() + 1) and 0xFF // 对补码取模，确保结果在0-255范围内
+        return iTmp
+    }
+
 
 
     //将int[1,0,0,1,1,0]数组转换为十进制数据

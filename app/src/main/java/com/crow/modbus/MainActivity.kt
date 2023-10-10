@@ -7,31 +7,34 @@ package com.crow.modbus
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.crow.modbus.serialport.ModbusFunction
+import com.crow.modbus.serialport.KModbusASCIIMaster
 import com.crow.modbus.serialport.KModbusRtuMaster
 import com.crow.modbus.serialport.KModbusTCPMaster
+import com.crow.modbus.serialport.ModbusFunction
 import com.crow.modbus.serialport.SerialPortManager
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.isClosed
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.utils.io.readAvailable
-import io.ktor.utils.io.writeAvailable
 import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.timer
 
 class MainActivity : AppCompatActivity() {
 
-
     private val mSerialPort = SerialPortManager()
 
     private val IO = CoroutineScope(Dispatchers.IO)
+
+    private val kModbusRtuMaster = KModbusRtuMaster.getInstance()
+
+    private val kModbusASCIIMaster = KModbusASCIIMaster.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,65 +42,35 @@ class MainActivity : AppCompatActivity() {
 
         mSerialPort.openSerialPort("/dev/ttyS0", 9600)
 
-        val packet = KModbusRtuMaster.getInstance().build(ModbusFunction.WRITE_COILS,1, 0, 9, values = intArrayOf(1,1,1,1,1,1,1,1,1))
-        timer(period = 1000L) {
-//             mSerialPort.writeBytes(byteArrayOf(0x01, 0x06, 0x00, 0x00, 0x00, 0x01, 0x48, 0x0A))
-             mSerialPort.writeBytes(packet)
-        }
-
         mSerialPort.readBytes { bytes -> logger("ReadBytes ${bytes.map { it.toHexString() }}") }
 
-        // IO.launch(CoroutineExceptionHandler { _, _ -> logger("发生异常") }) { onTcpModbusPoll() }
+
+        var revValues: Boolean = false
+        timer(period = 1000) {
+            openOutput((if(revValues) intArrayOf(0,0,0,0,0,0,0,0,0) else intArrayOf(1,1,1,1,1,1,1,1,1)).also { revValues = !revValues })
+        }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
-    private suspend fun onTcpModbusPoll() {
-        val socket: Socket =
-            runCatching {
-                aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("192.168.1.100", 502)
-            }
-                .onFailure { logger("连接失败！") }
-                .onSuccess { logger("连接成功！") }
-                .getOrThrow()
-        val input = socket.openReadChannel()
-        val output = socket.openWriteChannel()
-        IO.launch {
-            while (true) {
-                val buffer = ByteArray(2048)
-                input.readAvailable(buffer)
-                if (socket.isClosed) return@launch
-                logger(buffer.map { it.toHexString() })
-                delay(1000L)
-            }
-        }
-        IO.launch {
-            output.writeAvailable(byteArrayOf(0x01, 0x06, 0x00, 0x00, 0x00, 0x01, 0x48, 0x0A))
-            logger("发送成功")
-        }
+    private fun openOutput(values: IntArray) {
+//        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, values = values))
+        val packet = kModbusASCIIMaster.build(ModbusFunction.WRITE_SINGLE_REGISTER,1, 0, 1, value = 1, values = values)
+        mSerialPort.writeBytes(packet)
     }
 }
 
-suspend fun main() {
-    onTcpModbusPoll()
-    delay(100000)
-}
+suspend fun main() { onTcpModbusPoll().join() }
 
-private suspend fun onTcpModbusPoll() {
-
+private suspend fun onTcpModbusPoll(): Job {
     fun logger(message: Any?) = println(message)
-
     val IO = CoroutineScope(Dispatchers.IO)
-    val data = KModbusTCPMaster.getInstance().build(ModbusFunction.READ_HOLDING_REGISTERS, 1,1, 1)
-    val socket: Socket =
-        runCatching {
-            aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("192.168.1.100", 502)
-        }
+    val data = KModbusTCPMaster.getInstance().build(ModbusFunction.WRITE_SINGLE_REGISTER, 1,1, 1, value = 1)
+    val socket: Socket = runCatching { aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("192.168.1.100", 502) }
             .onFailure { logger("连接失败！") }
             .onSuccess { logger("连接成功！") }
             .getOrThrow()
     val input = socket.openReadChannel()
     val output = socket.openWriteChannel(autoFlush = true)
-    IO.launch {
+    val job = IO.launch {
         while (true) {
             val buffer = ByteArray(2048)
             val size = input.readAvailable(buffer)
@@ -106,8 +79,8 @@ private suspend fun onTcpModbusPoll() {
         }
     }
     IO.launch {
-        // 写 线圈1
         output.writeFully(data)
         logger("发送成功")
     }
+    return job
 }

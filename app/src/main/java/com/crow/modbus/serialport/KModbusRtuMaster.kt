@@ -31,6 +31,7 @@ class KModbusRtuMaster private constructor() : KModbus(){
     @OptIn(ExperimentalStdlibApi::class)
     fun build( function: ModbusFunction, slave: Int, startAddress: Int, count: Int, value: Int? = null, values: IntArray? = null): ByteArray {
         val output = buildOutput(slave, function, startAddress, count, value, values)
+        println(output.toByteArray().map { it.toHexString() })
         toCalculateCRC16(output.toByteArray(), output)
         return output.toByteArray()
     }

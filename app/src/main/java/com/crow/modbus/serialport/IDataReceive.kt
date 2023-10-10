@@ -1,6 +1,6 @@
 package com.crow.modbus.serialport
 
-import com.crow.modbus.ext.Bytes
+import com.crow.base.ext.Bytes
 
 fun interface IDataReceive {
     fun onReceive(buffer: Bytes)

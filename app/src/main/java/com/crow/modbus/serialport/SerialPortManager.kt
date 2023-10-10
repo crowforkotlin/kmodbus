@@ -2,7 +2,7 @@
 
 package com.crow.modbus.serialport
 
-import com.crow.modbus.ext.Bytes
+import com.crow.base.ext.Bytes
 import com.crow.modbus.logger
 import com.crow.modbus.loggerError
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -94,7 +94,7 @@ class SerialPortManager : SerialPort() {
             }
         }
 
-        mFileDescriptor = open(device.absolutePath, baudRate, SerialPortParityFunction.EVEN, 1, 8)
+        mFileDescriptor = open(device.absolutePath, baudRate, SerialPortParityFunction.NONE, 1, 8)
         mFileInputStream = FileInputStream(mFileDescriptor)
         mFileOutputStream = FileOutputStream(mFileDescriptor)
         mSuccessListener?.onSuccess(device)
