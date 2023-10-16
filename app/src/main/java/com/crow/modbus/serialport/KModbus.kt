@@ -14,10 +14,16 @@ import kotlin.system.measureTimeMillis
  * @Time: 2023/9/28 18:38
  * @Author: CrowForKotlin
  * @Description: Modbus
- * @formatter:on
+ * @formatter:off
  **************************/
 open class KModbus protected constructor() {
 
+    /**
+     * ● 构造输出的数据
+     *
+     * ● 2023-10-16 16:42:18 周一 下午
+     * @author crowforkotlin
+     */
     fun buildOutput(slave: Int, function: ModbusFunction, startAddress: Int, count: Int, value: Int?, values: IntArray?, isTcp: Boolean = false): BytesOutput {
 
         //检查参数是否符合协议规定
