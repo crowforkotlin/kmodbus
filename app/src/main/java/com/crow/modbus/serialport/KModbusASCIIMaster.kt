@@ -35,7 +35,6 @@ class KModbusASCIIMaster private constructor() : KModbus() {
     private val HEAD = 0x3A
     private val END = byteArrayOf(0x0d, 0x0A)
 
-    @OptIn(ExperimentalStdlibApi::class)
     fun build( function: ModbusFunction, slave: Int, startAddress: Int, count: Int, value: Int? = null, values: IntArray? = null): ByteArray {
         val bytes = BytesOutput()
         val output = buildOutput(slave, function, startAddress, count, value, values).toByteArray()

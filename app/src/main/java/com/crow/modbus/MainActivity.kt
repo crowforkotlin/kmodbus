@@ -62,7 +62,9 @@ suspend fun main() { onTcpModbusPoll().join() }
 private suspend fun onTcpModbusPoll(): Job {
     fun logger(message: Any?) = println(message)
     val IO = CoroutineScope(Dispatchers.IO)
-    val data = KModbusASCIIMaster.getInstance().build(ModbusFunction.WRITE_SINGLE_COIL, 1,1, 1, value = 1)
+    val values = intArrayOf(1, 1, 1, 1, 1, 1, 1, 1)
+//    val values = intArrayOf(0, 0, 0, 0, 0, 0, 0, 0)
+    val data = KModbusTCPMaster.getInstance().build(ModbusFunction.WRITE_COILS, 1,1, 8, value = 1, values = values)
     logger(data.map { it.toHexString() })
     val socket: Socket = runCatching { aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("192.168.1.100", 502) }
             .onFailure { logger("连接失败！") }

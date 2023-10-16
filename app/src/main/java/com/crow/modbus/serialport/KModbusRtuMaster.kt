@@ -28,11 +28,13 @@ class KModbusRtuMaster private constructor() : KModbus(){
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
+    /**
+     * ● 构造数据
+     *
+     * ● 2023-10-16 16:16:40 周一 下午
+     * @author crowforkotlin
+     */
     fun build( function: ModbusFunction, slave: Int, startAddress: Int, count: Int, value: Int? = null, values: IntArray? = null): ByteArray {
-        val output = buildOutput(slave, function, startAddress, count, value, values)
-        println(output.toByteArray().map { it.toHexString() })
-        toCalculateCRC16(output.toByteArray(), output)
-        return output.toByteArray()
+        return toCalculateCRC16(buildOutput(slave, function, startAddress, count, value, values)).toByteArray()
     }
 }

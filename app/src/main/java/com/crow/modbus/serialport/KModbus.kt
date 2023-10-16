@@ -6,6 +6,7 @@ import com.crow.base.ext.Bytes
 import com.crow.base.ext.fromAsciiInt16
 import com.crow.base.ext.fromAsciiInt8
 import kotlin.experimental.inv
+import kotlin.system.measureTimeMillis
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -17,9 +18,7 @@ import kotlin.experimental.inv
  **************************/
 open class KModbus protected constructor() {
 
-    @OptIn(ExperimentalStdlibApi::class)
     fun buildOutput(slave: Int, function: ModbusFunction, startAddress: Int, count: Int, value: Int?, values: IntArray?, isTcp: Boolean = false): BytesOutput {
-
 
         //检查参数是否符合协议规定
         when {
@@ -65,56 +64,67 @@ open class KModbus protected constructor() {
                 //写入数据
                 (values ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in!")).forEach { output.writeInt16(it) }
             }
+            /*ModbusFunction.WRITE_COILS -> {
+                    if (values == null) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in!")
+
+                    //计算写入字节数
+                    var writeByteCount: Int = count / 8  // 8个线圈 代表 一个字节
+
+                    // 如果剩余线圈数量不是8的倍数，则需要再加一个字节
+                    if (count % 8 != 0) {
+                        writeByteCount += 1
+                    }
+
+                    //写多个线圈寄存器
+                    output.writeInt8(function.mCode)
+                    output.writeInt16(startAddress)
+                    output.writeInt16(count)
+                    output.writeInt8(writeByteCount)
+
+                    var index = 0
+                    //如果写入数据数量 > 8 ，则需要拆分开来
+                    var start = 0 //数组开始位置
+
+                    var end = 7 //数组结束位置
+
+                    var splitData = IntArray(8)
+                    //循环写入拆分数组，直到剩下最后一组 元素个数 <= 8 的数据
+                    while (writeByteCount > 1) {
+                        writeByteCount--
+                        var sIndex = 0
+                        index = start
+                        while (index <= end) {
+                            splitData[sIndex++] = values[index]
+                            index++
+                        }
+                        //数据反转 对于是否要反转要看你传过来的数据，如果高低位顺序正确则不用反转
+                        splitData = splitData.reversedArray()
+
+                        //写入拆分数组
+                        output.writeInt8(toDecimal(splitData))
+                        start = index
+                        end += 8
+                    }
+                    //写入最后剩下的数据
+                    val last: Int = count - index
+                    var tData: IntArray? = IntArray(last)
+                    System.arraycopy(values, index, tData, 0, last)
+                    //数据反转 对于是否要反转要看你传过来的数据，如果高低位顺序正确则不用反转
+                    tData = tData!!.reversedArray()
+
+                    output.writeInt8(toDecimal(tData))
+            }*/
+
             ModbusFunction.WRITE_COILS -> {
-
-                if (values == null) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in!")
-
-                //计算写入字节数
-                var writeByteCount: Int = count / 8  // 8个线圈 代表 一个字节
-
-                // 如果剩余线圈数量不是8的倍数，则需要再加一个字节
-                if (count % 8 != 0) {
-                    writeByteCount += 1
-                }
-
-                //写多个线圈寄存器
+                if (values == null || values.isEmpty()) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in and cannot be empty!")
                 output.writeInt8(function.mCode)
                 output.writeInt16(startAddress)
                 output.writeInt16(count)
-                output.writeInt8(writeByteCount)
-
-                var index = 0
-                //如果写入数据数量 > 8 ，则需要拆分开来
-                var start = 0 //数组开始位置
-
-                var end = 7 //数组结束位置
-
-                var splitData = IntArray(8)
-                //循环写入拆分数组，直到剩下最后一组 元素个数 <= 8 的数据
-                while (writeByteCount > 1) {
-                    writeByteCount--
-                    var sIndex = 0
-                    index = start
-                    while (index <= end) {
-                        splitData[sIndex++] = values[index]
-                        index++
-                    }
-                    //数据反转 对于是否要反转要看你传过来的数据，如果高低位顺序正确则不用反转
-                    splitData = splitData.reversedArray()
-
-                    //写入拆分数组
-                    output.writeInt8(toDecimal(splitData))
-                    start = index
-                    end += 8
+                output.writeInt8((count + 7) shr 3)
+                val chunkedValues = values.toList().chunked(8)
+                for (chunk in chunkedValues) {
+                    output.writeInt8(toDecimal(chunk.reversed().toIntArray()))
                 }
-                //写入最后剩下的数据
-                val last: Int = count - index
-                var tData: IntArray? = IntArray(last)
-                System.arraycopy(values, index, tData, 0, last)
-                //数据反转 对于是否要反转要看你传过来的数据，如果高低位顺序正确则不用反转
-                tData = tData!!.reversedArray()
-
-                output.writeInt8(toDecimal(tData))
             }
             else -> throw ModbusException(ModbusErrorType.ModbusError, "unknown function code!")
         }
@@ -122,13 +132,25 @@ open class KModbus protected constructor() {
         return output
     }
 
-    fun toCalculateCRC16(bytes: Bytes, output: BytesOutput) {
+    /**
+     * ● CRC校验
+     *
+     * ● 2023-10-16 16:06:48 周一 下午
+     * @author crowforkotlin
+     */
+    fun toCalculateCRC16(output: BytesOutput): BytesOutput {
 
         //计算CRC校验码
-        val crc: Int = CRC16.compute(bytes)
-        output.writeInt16Reversal(crc)
+        output.writeInt16Reversal(CRC16.compute(output.toByteArray()))
+        return output
     }
 
+    /**
+     * ● LRC校验
+     *
+     * ● 2023-10-16 16:06:41 周一 下午
+     * @author crowforkotlin
+     */
     fun toCalculateLRC(data: ByteArray): Int {
         var iTmp = 0
         for (x in data) {
@@ -140,20 +162,19 @@ open class KModbus protected constructor() {
     }
 
 
-
-    //将int[1,0,0,1,1,0]数组转换为十进制数据
-    private fun toDecimal(data: IntArray?): Int {
+    /**
+     * ● Convert each digit component to decimal
+     *
+     * ● 2023-10-16 16:00:53 周一 下午
+     * @author crowforkotlin
+     */
+    private fun toDecimal(data: IntArray): Int {
         var result = 0
-        if (data != null) {
-            val sData = StringBuilder()
-            for (d in data) {
-                sData.append(d)
+        for (bit in data) {
+            if (bit != 0 && bit != 1) {
+                return -1  // 数据数组中包含非二进制值，返回错误
             }
-            result = try {
-                sData.toString().toInt(2)
-            } catch (e: NumberFormatException) {
-                -1
-            }
+            result = (result shl 1) + bit
         }
         return result
     }

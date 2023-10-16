@@ -39,7 +39,12 @@ class KModbusTCPMaster private constructor() : KModbus() {
     private var mTransactionId: Int = 0
     private val mProtocol: Int = 0
 
-    @OptIn(ExperimentalStdlibApi::class)
+    /**
+     * ● IP
+     *
+     * ● 2023-10-16 16:27:17 周一 下午
+     * @author crowforkotlin
+     */
     fun build(function: ModbusFunction, slave: Int, startAddress: Int, count: Int,value: Int? = null, values: IntArray? = null, transactionId: Int = mTransactionId): ByteArray {
         val pdu = buildOutput(slave, function, startAddress, count, value, values, isTcp = true)
         val size = pdu.size()
