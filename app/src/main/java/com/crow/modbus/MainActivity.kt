@@ -1,7 +1,5 @@
 @file:Suppress("PrivatePropertyName", "SpellCheckingInspection", "LocalVariableName")
-@file:OptIn(ExperimentalStdlibApi::class, ExperimentalStdlibApi::class,
-    ExperimentalStdlibApi::class
-)
+@file:OptIn(ExperimentalStdlibApi::class, ExperimentalStdlibApi::class, ExperimentalStdlibApi::class)
 
 package com.crow.modbus
 
