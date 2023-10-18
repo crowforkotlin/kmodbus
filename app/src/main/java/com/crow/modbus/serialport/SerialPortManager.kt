@@ -54,12 +54,8 @@ class SerialPortManager : SerialPort() {
     private fun changeFilePermissions(file: File): Boolean {
         return (file.takeIf { it.exists() } ?: false).runCatching {
 
-            logger("info")
-
             // 获取ROOT权限
             val su = Runtime.getRuntime().exec("/system/bin/su")
-
-            logger(su)
 
             // 修改文件属性为 [可读 可写 可执行]
             val cmd = "chmod 777 ${file.absolutePath}\nexit\n"
