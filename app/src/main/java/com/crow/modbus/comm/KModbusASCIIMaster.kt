@@ -50,14 +50,14 @@ class KModbusASCIIMaster private constructor() : KModbus() {
             ModbusEndian.ARRAY_BIG_BYTE_BIG -> output
             ModbusEndian.ARRAY__LITTLE_BYTE_BIG -> output.reversedArray()
             ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
-                val bytes = BytesOutput()
-                output.reversedArray().forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
-                bytes.toByteArray()
+                val bo = BytesOutput()
+                output.reversedArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                bo.toByteArray()
             }
             ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
-                val bytes = BytesOutput()
-                output.forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
-                bytes.toByteArray()
+                val bo = BytesOutput()
+                output.forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                bo.toByteArray()
             }
         }
     }

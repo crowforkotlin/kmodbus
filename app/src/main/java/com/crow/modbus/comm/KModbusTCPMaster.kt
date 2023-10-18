@@ -72,16 +72,15 @@ class KModbusTCPMaster private constructor() : KModbus() {
             ModbusEndian.ARRAY_BIG_BYTE_BIG -> mbap.toByteArray()
             ModbusEndian.ARRAY__LITTLE_BYTE_BIG -> mbap.toByteArray().reversedArray()
             ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
-                val bytes = BytesOutput()
-                mbap.toByteArray().reversedArray()
-                    .forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
-                bytes.toByteArray()
+                val bo = BytesOutput()
+                mbap.toByteArray().reversedArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                bo.toByteArray()
             }
 
             ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
-                val bytes = BytesOutput()
-                mbap.toByteArray().forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
-                bytes.toByteArray()
+                val bo = BytesOutput()
+                mbap.toByteArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                bo.toByteArray()
             }
         }
     }

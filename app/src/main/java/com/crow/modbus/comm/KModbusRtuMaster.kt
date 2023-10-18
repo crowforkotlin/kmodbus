@@ -60,35 +60,15 @@ class KModbusRtuMaster private constructor() : KModbus() {
             ModbusEndian.ARRAY_BIG_BYTE_BIG -> output
             ModbusEndian.ARRAY__LITTLE_BYTE_BIG -> output.reversedArray()
             ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
-                val bytes = BytesOutput()
-                output.reversedArray().forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
-                bytes.toByteArray()
+                val bo = BytesOutput()
+                output.reversedArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                bo.toByteArray()
             }
             ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
-                val bytes = BytesOutput()
-                output.forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
-                bytes.toByteArray()
+                val bo = BytesOutput()
+                output.forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                bo.toByteArray()
             }
         }
     }
-}
-
-@OptIn(ExperimentalStdlibApi::class)
-fun main() {
-    // 给定的16位数据
-    val data = 0xAB
-
-    // 提取 "" 和 "BA"
-    val a = (data shr 4) and 0xF
-    val b = data and 0xF
-    println(((data and 0xF) shl 4 or (data shr 4 and 0xF)).toHexString())
-    println((data and 0xF shl 4 or (data shr 4 and 0xF)).toHexString())
-    val result = b shl 4 or a
-    val bytesOutput = BytesOutput()
-    bytesOutput.writeInt8(a)
-    bytesOutput.writeInt8(b)
-    bytesOutput.writeInt8(result)
-    println(bytesOutput.toByteArray().map { it.toHexString() })
-
-
 }
