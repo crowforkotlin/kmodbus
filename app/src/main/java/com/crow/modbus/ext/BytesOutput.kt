@@ -1,11 +1,6 @@
-package com.crow.modbus.serialport
+package com.crow.modbus.ext
 
 
-import com.crow.base.ext.Bytes
-import com.crow.base.ext.fromInt16
-import com.crow.base.ext.fromInt16LittleEndian
-import com.crow.base.ext.fromInt32
-import com.crow.base.ext.fromInt8
 import java.io.ByteArrayOutputStream
 
 class BytesOutput : ByteArrayOutputStream() {

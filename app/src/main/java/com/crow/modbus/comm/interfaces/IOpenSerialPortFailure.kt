@@ -1,5 +1,6 @@
-package com.crow.modbus.serialport
+package com.crow.modbus.comm.interfaces
 
+import com.crow.modbus.serialport.SerialPortState
 import java.io.File
 
 fun interface IOpenSerialPortFailure {

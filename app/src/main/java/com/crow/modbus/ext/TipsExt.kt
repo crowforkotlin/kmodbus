@@ -1,4 +1,4 @@
-@file:Suppress("SpellCheckingInspection")
+@file:Suppress("SpellCheckingInspection", "MayBeConstant")
 
 package com.crow.modbus.ext
 

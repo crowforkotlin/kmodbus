@@ -1,6 +1,11 @@
 @file:Suppress("SpellCheckingInspection")
 
-package com.crow.modbus.serialport
+package com.crow.modbus.comm
+
+import com.crow.modbus.comm.model.ModbusEndian
+import com.crow.modbus.comm.model.ModbusFunction
+import com.crow.modbus.ext.BytesOutput
+import com.crow.modbus.ext.toReverseInt8
 
 /*************************
  * @Package: com.crow.modbus.serialport
@@ -10,7 +15,6 @@ package com.crow.modbus.serialport
  * @formatter:on
  **************************/
 class KModbusTCPMaster private constructor() : KModbus() {
-
 
 
     companion object {
@@ -23,7 +27,7 @@ class KModbusTCPMaster private constructor() : KModbus() {
 
         private var instance: KModbusTCPMaster? = null
 
-        fun getInstance() : KModbusTCPMaster {
+        fun getInstance(): KModbusTCPMaster {
             if (instance == null) {
                 synchronized(this) {
                     if (instance == null) {
@@ -45,7 +49,16 @@ class KModbusTCPMaster private constructor() : KModbus() {
      * ● 2023-10-16 16:27:17 周一 下午
      * @author crowforkotlin
      */
-    fun build(function: ModbusFunction, slave: Int, startAddress: Int, count: Int,value: Int? = null, values: IntArray? = null, transactionId: Int = mTransactionId): ByteArray {
+    fun build(
+        function: ModbusFunction,
+        slave: Int,
+        startAddress: Int,
+        count: Int,
+        value: Int? = null,
+        values: IntArray? = null,
+        transactionId: Int = mTransactionId,
+        endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG,
+    ): ByteArray {
         val pdu = buildOutput(slave, function, startAddress, count, value, values, isTcp = true)
         val size = pdu.size()
         val mbap = BytesOutput()
@@ -55,6 +68,21 @@ class KModbusTCPMaster private constructor() : KModbus() {
         mbap.writeInt8(slave)
         mbap.write(pdu.toByteArray())
         mTransactionId++
-        return mbap.toByteArray()
+        return when (endian) {
+            ModbusEndian.ARRAY_BIG_BYTE_BIG -> mbap.toByteArray()
+            ModbusEndian.ARRAY__LITTLE_BYTE_BIG -> mbap.toByteArray().reversedArray()
+            ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
+                val bytes = BytesOutput()
+                mbap.toByteArray().reversedArray()
+                    .forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
+                bytes.toByteArray()
+            }
+
+            ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
+                val bytes = BytesOutput()
+                mbap.toByteArray().forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
+                bytes.toByteArray()
+            }
+        }
     }
 }

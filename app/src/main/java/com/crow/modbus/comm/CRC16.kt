@@ -1,4 +1,4 @@
-package com.crow.modbus.serialport
+package com.crow.modbus.comm
 
 object CRC16 {
     private val crc16_tab_h = byteArrayOf(

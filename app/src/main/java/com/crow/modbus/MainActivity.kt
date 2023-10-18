@@ -7,10 +7,12 @@ package com.crow.modbus
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.crow.modbus.serialport.KModbusASCIIMaster
-import com.crow.modbus.serialport.KModbusRtuMaster
-import com.crow.modbus.serialport.KModbusTCPMaster
-import com.crow.modbus.serialport.ModbusFunction
+import com.crow.modbus.comm.KModbusASCIIMaster
+import com.crow.modbus.comm.KModbusRtuMaster
+import com.crow.modbus.comm.KModbusTCPMaster
+import com.crow.modbus.comm.model.ModbusEndian
+import com.crow.modbus.comm.model.ModbusFunction
+import com.crow.modbus.ext.logger
 import com.crow.modbus.serialport.SerialPortManager
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.Socket
@@ -52,8 +54,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openOutput(values: IntArray) {
-//        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, values = values))
-        mSerialPort.writeBytes(kModbusASCIIMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, value = 1, values = values))
+        // BIG : 01, 0f, 00, 00, 00, 09, 02, ff, 01, 65, 4c
+        // LITTLE_LITTLE : c4, 56, 10, ff, 20, 90, 00, 00, 00, f0, 10
+        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, values = values, endian = ModbusEndian.ARRAY_BIG_BYTE_LITTLE))
+//        mSerialPort.writeBytes(kModbusASCIIMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, value = 1, values = values))
     }
 }
 

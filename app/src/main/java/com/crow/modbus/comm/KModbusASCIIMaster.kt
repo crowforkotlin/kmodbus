@@ -1,12 +1,13 @@
 @file:Suppress("PrivatePropertyName")
 
-package com.crow.modbus.serialport
+package com.crow.modbus.comm
 
-import com.crow.base.ext.fromAsciiInt16
-import com.crow.base.ext.fromAsciiInt8
-import com.crow.base.ext.toAsciiHexBytes
-import com.crow.base.ext.toAsciiInt
-
+import com.crow.modbus.comm.model.ModbusEndian
+import com.crow.modbus.comm.model.ModbusFunction
+import com.crow.modbus.ext.BytesOutput
+import com.crow.modbus.ext.fromAsciiInt8
+import com.crow.modbus.ext.toAsciiHexBytes
+import com.crow.modbus.ext.toReverseInt8
 
 /*************************
  * @Package: com.crow.modbus.serialport
@@ -35,7 +36,7 @@ class KModbusASCIIMaster private constructor() : KModbus() {
     private val HEAD = 0x3A
     private val END = byteArrayOf(0x0d, 0x0A)
 
-    fun build( function: ModbusFunction, slave: Int, startAddress: Int, count: Int, value: Int? = null, values: IntArray? = null): ByteArray {
+    fun build(function: ModbusFunction, slave: Int, startAddress: Int, count: Int, value: Int? = null, values: IntArray? = null, endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG): ByteArray {
         val bytes = BytesOutput()
         val output = buildOutput(slave, function, startAddress, count, value, values).toByteArray()
         val pLRC = fromAsciiInt8(toCalculateLRC(output))
@@ -45,6 +46,19 @@ class KModbusASCIIMaster private constructor() : KModbus() {
         bytes.writeInt8(pLRC.first)
         bytes.writeInt8(pLRC.second)
         bytes.writeBytes(END, END.size)
-        return bytes.toByteArray()
+        return when (endian) {
+            ModbusEndian.ARRAY_BIG_BYTE_BIG -> output
+            ModbusEndian.ARRAY__LITTLE_BYTE_BIG -> output.reversedArray()
+            ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
+                val bytes = BytesOutput()
+                output.reversedArray().forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
+                bytes.toByteArray()
+            }
+            ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
+                val bytes = BytesOutput()
+                output.forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
+                bytes.toByteArray()
+            }
+        }
     }
 }

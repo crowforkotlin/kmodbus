@@ -2,9 +2,12 @@
 
 package com.crow.modbus.serialport
 
-import com.crow.base.ext.Bytes
-import com.crow.modbus.logger
-import com.crow.modbus.loggerError
+import com.crow.modbus.comm.interfaces.IDataReceive
+import com.crow.modbus.comm.interfaces.IOpenSerialPortFailure
+import com.crow.modbus.comm.interfaces.IOpenSerialPortSuccess
+import com.crow.modbus.ext.Bytes
+import com.crow.modbus.ext.logger
+import com.crow.modbus.ext.loggerError
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -1,12 +1,11 @@
 @file:Suppress("SpellCheckingInspection")
 
-package com.crow.modbus.serialport
+package com.crow.modbus.comm
 
-import com.crow.base.ext.Bytes
-import com.crow.base.ext.fromAsciiInt16
-import com.crow.base.ext.fromAsciiInt8
-import kotlin.experimental.inv
-import kotlin.system.measureTimeMillis
+import com.crow.modbus.comm.model.ModbusErrorType
+import com.crow.modbus.comm.model.ModbusException
+import com.crow.modbus.comm.model.ModbusFunction
+import com.crow.modbus.ext.BytesOutput
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -34,7 +33,6 @@ open class KModbus protected constructor() {
         }
 
         val output = BytesOutput()
-
 
         if (!isTcp) {
             output.writeInt8(slave)

@@ -1,4 +1,4 @@
-package com.crow.modbus.serialport
+package com.crow.modbus.comm.model
 
 /**
  * 常见的Modbus通讯错误

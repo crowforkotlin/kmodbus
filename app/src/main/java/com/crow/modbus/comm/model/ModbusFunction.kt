@@ -1,4 +1,4 @@
-package com.crow.modbus.serialport
+package com.crow.modbus.comm.model
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11

@@ -1,4 +1,4 @@
-package com.crow.modbus.serialport
+package com.crow.modbus.comm.interfaces
 
 import java.io.File
 
