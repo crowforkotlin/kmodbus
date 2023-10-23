@@ -18,6 +18,7 @@ data class ModbusRtuRespPacket(
         return runCatching { when (intBitLength) {
                 1 -> mValues
                 2 -> {
+                    println(mValues)
                     val chunkedValues = mValues.chunked(2)
                     val data = ArrayList<Int>(chunkedValues.size)
                     for (ints in chunkedValues) { data.add(((ints[0] and 0xFF) shl 8) or (ints[1] and 0xFF)) }
