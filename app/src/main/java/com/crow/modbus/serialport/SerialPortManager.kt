@@ -137,11 +137,11 @@ class SerialPortManager : SerialPort() {
         io.launch {
             while (true) {
                 if (null != mFileDescriptor && null != mFileInputStream && null != mFileOutputStream) {
-                    val length = mFileInputStream!!.read(mReadedBuffer)
-                    logger("$length")
+                    val readedBuffer = Bytes(1024)
+                    val length = mFileInputStream!!.read(readedBuffer)
                     if (length <= 0) return@launch
                     val buffer = Bytes(length)
-                    System.arraycopy(mReadedBuffer, 0, buffer, 0, length)
+                    System.arraycopy(readedBuffer, 0, buffer, 0, length)
                     iDataReceive.onReceive(buffer)
                 }
             }

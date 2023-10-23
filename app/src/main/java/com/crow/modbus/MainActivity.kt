@@ -3,7 +3,6 @@
 
 package com.crow.modbus
 
-import android.os.Build.VERSION_CODES.R
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.crow.modbus.comm.KModbusASCIIMaster
@@ -26,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.timer
+import kotlin.system.measureTimeMillis
 
 class MainActivity : AppCompatActivity() {
 
@@ -43,8 +43,7 @@ class MainActivity : AppCompatActivity() {
 
         mSerialPort.openSerialPort("/dev/ttyS0", 9600)
 
-        mSerialPort.readBytes { bytes -> logger("ReadBytes ${bytes.map { it.toHexString() }}") }
-
+        mSerialPort.readBytes { logger(it.map { byte -> byte.toHexString() }) }
 
         var revValues = false
         timer(period = 1000) {
@@ -55,12 +54,24 @@ class MainActivity : AppCompatActivity() {
     private fun openOutput(values: IntArray) {
         // BIG : 01, 0f, 00, 00, 00, 09, 02, ff, 01, 65, 4c
         // LITTLE_LITTLE : c4, 56, 10, ff, 20, 90, 00, 00, 00, f0, 10
-        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, values = values, endian = ModbusEndian.ARRAY_BIG_BYTE_LITTLE))
+        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.READ_COILS,1, 0, 1, values = values, endian = ModbusEndian.ARRAY_BIG_BYTE_BIG))
+//        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.WRITE_SINGLE_COIL,1, 0, 1, value = 1, endian = ModbusEndian.ARRAY_BIG_BYTE_BIG))
+//        mSerialPort.writeBytes(kModbusRtuMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, values = values, endian = ModbusEndian.ARRAY_BIG_BYTE_BIG))
 //        mSerialPort.writeBytes(kModbusASCIIMaster.build(ModbusFunction.WRITE_COILS,1, 0, 9, value = 1, values = values))
     }
 }
 
-suspend fun main() { onTcpModbusPoll().join() }
+suspend fun main() {
+    val packet = KModbusRtuMaster.getInstance().build(ModbusFunction.READ_HOLDING_REGISTERS,1, 0, 1, endian = ModbusEndian.ARRAY_BIG_BYTE_LITTLE)
+    println(packet.map { it.toHexString() })
+//    val data = byteArrayOf(0x01, 0x83.toByte(), 0x02, 0xC0.toByte(), 0xF1.toByte())
+//    val data = byteArrayOf(
+//        0x01, 0x03, 0x12, 0x00, 0x04, 0x00, 0x2C, 0x00,
+//        0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//        0x00, 0x00, 0x00, 0x00, 0x65, 0xDC.toByte()
+//    )
+    onTcpModbusPoll().join()
+}
 
 private suspend fun onTcpModbusPoll(): Job {
     fun logger(message: Any?) = println(message)

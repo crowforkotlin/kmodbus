@@ -1,5 +1,6 @@
 package com.crow.modbus.comm.model
 
+
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
  * @Package: com.crow.modbus.serialport
@@ -13,7 +14,7 @@ package com.crow.modbus.comm.model
 /**
  * 功能码（十进制显示）
  */
-enum class ModbusFunction(val mCode: Int) {
+enum class ModbusFunction(var mCode: Int) {
 
     //读线圈寄存器
     READ_COILS(1),
@@ -37,7 +38,8 @@ enum class ModbusFunction(val mCode: Int) {
     WRITE_COILS(15),
 
     //写入多个保持寄存器
-    WRITE_HOLDING_REGISTERS(16)
+    WRITE_HOLDING_REGISTERS(16),
+
 }
 
 
