@@ -1,7 +1,5 @@
 package com.crow.modbus.comm.model
 
-import com.crow.modbus.ext.fromInt16
-import com.crow.modbus.ext.toInt32
 
 data class ModbusRtuRespPacket(
     val mSlave: Int,
