@@ -13,28 +13,16 @@ extern "C" {
  * Method:    open
  * Signature: (Ljava/lang/String;II)Ljava/io/FileDescriptor;
  */
-
-JNIEXPORT jobject JNICALL Java_com_crow_modbus_serialportlibrary_SerialPort_open
-  (JNIEnv *, jclass, jstring, jint, jint);
-
-
-JNIEXPORT void JNICALL Java_com_crow_modbus_serialportlibrary_SerialPort_close(JNIEnv *, jobject);
-
-/*
- * Class:     android_serialport_api_SerialPort
- * Method:    open
- * Signature: (Ljava/lang/String;II)Ljava/io/FileDescriptor;
- */
-JNIEXPORT jobject JNICALL
-Java_com_crow_modbus_SerialPort_open(JNIEnv *env, jobject thiz, jstring path, jint baudrate,jint flags);
-
+JNIEXPORT jobject JNICALL Java_com_crow_modbus_SerialPort_open
+        (JNIEnv *, jobject thiz,  jstring path, jint baudrate, jint flags, jint parity, jint stop_bit, jint data_bit);
 
 /*
 * Class:     android_serialport_api_SerialPort
  * Method:    close
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_com_crow_modbus_SerialPort_close(JNIEnv *env, jobject);
+JNIEXPORT void JNICALL Java_com_crow_modbus_SerialPort_close
+(JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }
