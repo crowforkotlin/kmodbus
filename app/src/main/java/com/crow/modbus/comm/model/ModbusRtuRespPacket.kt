@@ -1,5 +1,8 @@
 package com.crow.modbus.comm.model
 
+import com.crow.modbus.ext.logger
+import java.nio.ByteBuffer
+
 
 data class ModbusRtuRespPacket(
     val mSlave: Int,
@@ -8,8 +11,16 @@ data class ModbusRtuRespPacket(
     val mValues: List<Int>,
 ) {
 
-    fun toFloatData() {
-
+    fun toFloatData(): List<Float> {
+        return runCatching {
+            val size = mValues.size shr 2
+            val values = ArrayList<Float>(size)
+            val buffer= ByteBuffer.wrap(mValues.map { it.toByte() }.toByteArray())
+            repeat(size) { values.add(buffer.getFloat()) }
+            values
+        }
+            .onFailure { logger(it.stackTraceToString())  }
+            .getOrElse { listOf() }
     }
 
     fun toIntData(intBitLength: Int = 2): List<Int> {

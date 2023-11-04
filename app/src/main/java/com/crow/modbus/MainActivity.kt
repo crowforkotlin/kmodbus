@@ -10,6 +10,7 @@ import com.crow.modbus.comm.KModbusRtuMaster
 import com.crow.modbus.comm.KModbusTCPMaster
 import com.crow.modbus.comm.model.ModbusEndian
 import com.crow.modbus.comm.model.ModbusFunction
+import com.crow.modbus.ext.formateAsBytes
 import com.crow.modbus.ext.logger
 import com.crow.modbus.serialport.SerialPortManager
 import io.ktor.network.selector.ActorSelectorManager
@@ -19,12 +20,19 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
+import java.util.concurrent.CancellationException
 import kotlin.concurrent.timer
+import kotlin.experimental.and
+import kotlin.system.measureNanoTime
 import kotlin.system.measureTimeMillis
 
 class MainActivity : AppCompatActivity() {
@@ -61,16 +69,22 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 suspend fun main() {
-    val packet = KModbusRtuMaster.getInstance().build(ModbusFunction.READ_HOLDING_REGISTERS,1, 0, 1, endian = ModbusEndian.ARRAY_BIG_BYTE_LITTLE)
+
+    val packet = KModbusRtuMaster.getInstance().build(ModbusFunction.READ_HOLDING_REGISTERS,1, 0, 4, endian = ModbusEndian.ARRAY_BIG_BYTE_BIG)
+//    println(packet.map { if((it.toInt() and 0xFF) > 127) "0x${it.toHexString()}.toByte()" else "0x${it.toHexString()}" }.toString().removeSurrounding("[", "]"))
     println(packet.map { it.toHexString() })
 //    val data = byteArrayOf(0x01, 0x83.toByte(), 0x02, 0xC0.toByte(), 0xF1.toByte())
-    val data = byteArrayOf(
-        0x01, 0x03, 0x12, 0x00, 0x04, 0x00, 0x2C, 0x00,
-        0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x65, 0xDC.toByte()
-    )
-    println(KModbusRtuMaster.getInstance().resolve(data, ModbusEndian.ARRAY_BIG_BYTE_BIG).toIntData(2))
+    val data = byteArrayOf(0x01,0x03,0x06,0x00,0x01,0x00,0x00,0x00,0x00,0x1C, 0xB5.toByte())
+//    val data = byteArrayOf(
+//        0x01, 0x03, 0x12, 0x00, 0x04, 0x00, 0x2C, 0x00,
+//        0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//        0x00, 0x00, 0x00, 0x00, 0x65, 0xDC.toByte()
+//    )
+    val resp = formateAsBytes("[01, 03, 02, 00, 00, b8, 44]") ?: return
+    println(resp.map { it.toHexString() })
+    println(KModbusRtuMaster.getInstance().resolve(resp, ModbusEndian.ARRAY_BIG_BYTE_BIG).also { println(it) }.toIntData())
     return
     onTcpModbusPoll().join()
 }

@@ -106,7 +106,7 @@ class KModbusRtuMaster private constructor() : KModbus() {
         } else {
             val byteCount = inputs[2].toInt()
             val bytes = ArrayList<Int>(byteCount)
-            repeat(byteCount - 1) { bytes.add(inputs[startIndexOfData + it].toInt()) }
+            repeat(byteCount) { bytes.add(inputs[startIndexOfData + it].toInt()) }
             ModbusRtuRespPacket(
                 mSlave = inputs[0].toInt(),
                 mFunctionCode = inputs[1].toInt(),
