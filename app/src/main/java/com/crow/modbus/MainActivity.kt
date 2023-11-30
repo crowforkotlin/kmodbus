@@ -3,16 +3,15 @@
 
 package com.crow.modbus
 
-import android.os.Build.VERSION_CODES.R
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.crow.modbus.comm.KModbusASCIIMaster
-import com.crow.modbus.comm.KModbusRtuMaster
 import com.crow.modbus.comm.KModbusTCPMaster
 import com.crow.modbus.comm.model.ModbusEndian
 import com.crow.modbus.comm.model.ModbusFunction
 import com.crow.modbus.ext.logger
 import com.crow.modbus.serialport.SerialPortManager
+import com.listen.x3player.kt.modbus.comm.KModbusRtuMaster
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
@@ -39,11 +38,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(com.crow.modbus.R.layout.activity_main)
 
         mSerialPort.openSerialPort("/dev/ttyS0", 9600)
 
-        mSerialPort.readBytes { bytes -> logger("ReadBytes ${bytes.map { it.toHexString() }}") }
+        mSerialPort.readBytes { _, bytes -> logger("ReadBytes ${bytes.map { it.toHexString() }}") }
 
 
         var revValues = false

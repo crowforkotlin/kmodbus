@@ -4,7 +4,10 @@ package com.crow.modbus.comm
 
 import com.crow.modbus.comm.model.ModbusEndian
 import com.crow.modbus.comm.model.ModbusFunction
+import com.crow.modbus.comm.model.ModbusTcpRespPacket
 import com.crow.modbus.ext.BytesOutput
+import com.crow.modbus.ext.baseTenF
+import com.crow.modbus.ext.logger
 import com.crow.modbus.ext.toReverseInt8
 
 /*************************
@@ -70,18 +73,65 @@ class KModbusTCPMaster private constructor() : KModbus() {
         mTransactionId++
         return when (endian) {
             ModbusEndian.ARRAY_BIG_BYTE_BIG -> mbap.toByteArray()
-            ModbusEndian.ARRAY__LITTLE_BYTE_BIG -> mbap.toByteArray().reversedArray()
+            ModbusEndian.ARRAY_LITTLE_BYTE_BIG -> mbap.toByteArray().reversedArray()
             ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
-                val bo = BytesOutput()
-                mbap.toByteArray().reversedArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
-                bo.toByteArray()
+                val bytes = BytesOutput()
+                mbap.toByteArray().reversedArray()
+                    .forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
+                bytes.toByteArray()
             }
 
             ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
-                val bo = BytesOutput()
-                mbap.toByteArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
-                bo.toByteArray()
+                val bytes = BytesOutput()
+                mbap.toByteArray().forEach { bytes.writeInt8(toReverseInt8(it.toInt())) }
+                bytes.toByteArray()
             }
         }
+    }
+
+    fun resolve(bytes: ByteArray, endian: ModbusEndian): ModbusTcpRespPacket? {
+        return runCatching {
+            val inputs = when (endian) {
+                ModbusEndian.ARRAY_BIG_BYTE_BIG -> bytes
+                ModbusEndian.ARRAY_LITTLE_BYTE_BIG -> bytes.reversedArray()
+                ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
+                    val bo = BytesOutput()
+                    bytes.reversedArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                    bo.toByteArray()
+                }
+                ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
+                    val bo = BytesOutput()
+                    bytes.forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
+                    bo.toByteArray()
+                }
+            }
+            val functionCode= inputs[7].toInt() and 0xFF
+            val isFunctionCodeError = (functionCode and baseTenF) + 0x80 == functionCode
+            val startIndexOfData = 9
+//            "${inputs[0].toInt()} \t ${inputs.map { String.format("%02x", it) }}".log()
+            if(isFunctionCodeError) {
+                val dataSize = inputs.size - 11
+                val values = ArrayList<Int>(dataSize)
+                repeat(dataSize) { values.add(inputs[startIndexOfData + it].toInt()) }
+                ModbusTcpRespPacket(
+                    mDeviceID = inputs[6].toInt(),
+                    mFunctionCode = functionCode,
+                    mBytesCount = dataSize,
+                    mValues =  values
+                )
+            } else {
+                val byteCount = inputs[8].toInt()
+                val values = ArrayList<Int>(byteCount)
+                repeat(byteCount) { values.add(inputs[startIndexOfData + it].toInt()) }
+                ModbusTcpRespPacket(
+                    mDeviceID = inputs[6].toInt(),
+                    mFunctionCode = functionCode,
+                    mBytesCount = byteCount,
+                    mValues =  values
+                )
+            }
+        }
+            .onFailure { logger(it.stackTraceToString()) }
+            .getOrElse { null }
     }
 }

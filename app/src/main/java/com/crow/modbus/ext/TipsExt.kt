@@ -13,3 +13,11 @@ fun logger(message: Any?, tag: String = TAG, level: Int = Log.INFO) {
 fun loggerError(error: Any?, tag: String = TAG) {
     Log.e(tag, error.toString())
 }
+
+fun Any?.log() {
+    logger(this.toString())
+}
+
+fun Any?.logger(level: Int = Log.INFO) {
+    logger(this.toString())
+}

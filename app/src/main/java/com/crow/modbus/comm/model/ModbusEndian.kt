@@ -21,10 +21,10 @@ enum class ModbusEndian {
     ARRAY_BIG_BYTE_LITTLE,
 
     // CD AB
-    ARRAY__LITTLE_BYTE_BIG,
+    ARRAY_LITTLE_BYTE_BIG,
 
     // DC BA
-    ARRAY_LITTLE_BYTE_LITTLE,
+    ARRAY_LITTLE_BYTE_LITTLE,;
 }
 
 

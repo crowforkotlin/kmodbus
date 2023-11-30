@@ -2,6 +2,7 @@
 
 package com.crow.modbus.serialport
 
+import android.util.Log
 import com.crow.modbus.comm.interfaces.IDataReceive
 import com.crow.modbus.comm.interfaces.IOpenSerialPortFailure
 import com.crow.modbus.comm.interfaces.IOpenSerialPortSuccess
@@ -11,14 +12,21 @@ import com.crow.modbus.ext.loggerError
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.concurrent.Executors
+import kotlin.coroutines.CoroutineContext
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -30,21 +38,22 @@ import java.io.IOException
  **************************/
 class SerialPortManager : SerialPort() {
 
-    companion object {
-        private val mutex = Mutex()
-        private val parentJob = SupervisorJob()
-        private val io = CoroutineScope(Dispatchers.IO + parentJob + CoroutineExceptionHandler { coroutineContext, throwable ->
-            loggerError("SerialPort an Exception occurs! context is $coroutineContext \t exception : ${throwable.stackTraceToString()}")
-        })
-    }
-
+    private object CoroutineExceptionHandlerKey : CoroutineContext.Key<CoroutineExceptionHandler>
     private var mSuccessListener: IOpenSerialPortSuccess? = null
     private var mFailureListener: IOpenSerialPortFailure? = null
-
     private var mFileInputStream: FileInputStream? = null
     private var mFileOutputStream: FileOutputStream? = null
-
-    private val mReadedBuffer = Bytes(1024)
+    private val mParentReadJob: Job = SupervisorJob()
+    private var mParentWriteJob: Job = SupervisorJob()
+    private val mParentIOJob = SupervisorJob()
+    private val mReadedContext = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mParentReadJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().logger(level = Log.ERROR) })
+    private val mWritedContext = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mParentWriteJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().logger(level = Log.ERROR) })
+    private val mIO = CoroutineScope(Dispatchers.IO + mParentIOJob + object : CoroutineExceptionHandler {
+        override val key: CoroutineContext.Key<*> get() = CoroutineExceptionHandlerKey
+        override fun handleException(context: CoroutineContext, exception: Throwable) {
+            loggerError("SerialPort an Exception occurs! context is $context \t exception : ${exception.stackTraceToString()}")
+        }
+    })
 
     /**
      * ● 修改文件权限为可读、可写、可执行
@@ -106,8 +115,11 @@ class SerialPortManager : SerialPort() {
      * ● 2023-09-23 16:02:12 周六 下午
      */
     fun closeSerialPort(): Boolean {
+        "◉ 正在关闭串口".logger()
         return runCatching {
-            parentJob.children.forEach { job -> job.cancel() }
+            mParentIOJob.cancelChildren()
+            mParentReadJob.cancelChildren()
+            mParentWriteJob.cancelChildren()
             mFileDescriptor = null
             mFileInputStream?.close()
             mFileOutputStream?.close()
@@ -117,32 +129,47 @@ class SerialPortManager : SerialPort() {
             mFailureListener = null
             true
         }
-            .onFailure { catch -> loggerError("close serial port exception! ${catch.stackTraceToString()}") }
+            .onSuccess { "◉ 关闭串口成功".logger() }
+            .onFailure { catch -> "◉ close serial port exception! ${catch.stackTraceToString()}".logger(level = Log.ERROR) }
             .getOrElse { false }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
-    fun writeBytes(bytes: ByteArray) {
-        io.launch {
-            mutex.withLock {
-                if (null != mFileDescriptor && null != mFileInputStream && null != mFileOutputStream) {
-                    logger("writeBytes ${bytes.map { it.toHexString() }}")
-                    mFileOutputStream!!.write(bytes)
-                }
+    fun writeBytesWithIOScope(bytes: ByteArray): Boolean {
+        if (mFileOutputStream == null) return false
+        mIO.launch {
+            mFileOutputStream?.let {
+                it.write(bytes)
+                it.flush()
             }
         }
+        return true
+    }
+
+    fun writeBytes(bytes: ByteArray): Boolean {
+        (mFileOutputStream ?: return false).let {
+            it.write(bytes)
+            it.flush()
+        }
+        return true
     }
 
     fun readBytes(iDataReceive: IDataReceive) {
-        io.launch {
+        val maxReadSize = 548
+        mParentReadJob.cancelChildren()
+        mReadedContext.launch {
             while (true) {
-                if (null != mFileDescriptor && null != mFileInputStream && null != mFileOutputStream) {
-                    val length = mFileInputStream!!.read(mReadedBuffer)
-                    logger("$length")
-                    if (length <= 0) return@launch
-                    val buffer = Bytes(length)
-                    System.arraycopy(mReadedBuffer, 0, buffer, 0, length)
-                    iDataReceive.onReceive(buffer)
+                if (null != mFileInputStream) {
+                    val bytes = ByteArray(maxReadSize)
+                    var mReadedBytes = 0
+                    repeat(15) {
+                        delay(20)
+                        if (mFileInputStream!!.available() > 0) {
+                            mReadedBytes += withContext(Dispatchers.IO) { mFileInputStream!!.read(bytes, mReadedBytes, bytes.size - mReadedBytes) }
+                        }
+                    }
+                    iDataReceive.onReceive(this, bytes)
+                } else {
+                    delay(1000)
                 }
             }
         }

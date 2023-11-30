@@ -48,7 +48,7 @@ class KModbusASCIIMaster private constructor() : KModbus() {
         bytes.writeBytes(END, END.size)
         return when (endian) {
             ModbusEndian.ARRAY_BIG_BYTE_BIG -> output
-            ModbusEndian.ARRAY__LITTLE_BYTE_BIG -> output.reversedArray()
+            ModbusEndian.ARRAY_LITTLE_BYTE_BIG -> output.reversedArray()
             ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
                 val bo = BytesOutput()
                 output.reversedArray().forEach { bo.writeInt8(toReverseInt8(it.toInt())) }
