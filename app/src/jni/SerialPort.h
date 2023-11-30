@@ -22,7 +22,7 @@ JNIEXPORT jobject JNICALL Java_com_crow_modbus_SerialPort_open
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_com_crow_modbus_SerialPort_close
-        (JNIEnv *, jobject);
+(JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }

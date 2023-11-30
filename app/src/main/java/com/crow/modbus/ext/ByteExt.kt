@@ -255,3 +255,30 @@ fun toAsciiHexBytes(data: ByteArray): ByteArray {
     for (byte in data) { toAsciiHexByte(byte, stream) }
     return stream.toByteArray()
 }
+
+@OptIn(ExperimentalStdlibApi::class)
+fun formateAsBytes(content: String): ByteArray? {
+    return runCatching {
+        val result = if (content.contains(",")) {
+            content
+                .replace(" ", "")
+                .removeSurrounding("[" , "]")
+                .split(",")
+                .map {
+                    if(it == "00") 0.toByte()
+                    else if(it.first() == '0') it.last().digitToInt().toByte()
+                    else it.toInt(16).toByte()
+                }
+                .toByteArray()
+        } else {
+            content
+                .removeSurrounding("[" , "]")
+                .split(" ")
+                .map { if(it == "00") 0.toByte() else if(it.first() == '0') it.last().digitToInt().toByte() else it.toInt().toByte() }
+                .toByteArray()
+        }
+        result
+    }
+        .onFailure { cause -> println(cause.stackTraceToString()) }
+        .getOrElse { null }
+}
