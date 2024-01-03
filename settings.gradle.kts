@@ -21,5 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "modbus"
+rootProject.name = "KModbus"
 include(":app")
+include(":lib_modbus")

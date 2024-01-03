@@ -59,7 +59,13 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-suspend fun main() { onTcpModbusPoll().join() }
+suspend fun main() {
+
+    println(
+        KModbusRtuMaster.getInstance().build(ModbusFunction.READ_HOLDING_REGISTERS, 1, 0, 10)
+            .map { it.toHexString() })
+    return
+    onTcpModbusPoll().join() }
 
 private suspend fun onTcpModbusPoll(): Job {
     fun logger(message: Any?) = println(message)
