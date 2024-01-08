@@ -3,11 +3,11 @@ package com.listen.x3player.kt.modbus.comm
 import com.crow.modbus.comm.KModbus
 import com.crow.modbus.comm.model.ModbusEndian
 import com.crow.modbus.comm.model.ModbusFunction
-import com.crow.modbus.comm.model.ModbusRtuRespPacket
 import com.crow.modbus.ext.BytesOutput
 import com.crow.modbus.ext.baseTenF
 import com.crow.modbus.ext.logger
 import com.crow.modbus.ext.toReverseInt8
+import com.listen.x3player.kt.modbus.comm.model.ModbusRtuRespPacket
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
  * @Package: com.crow.modbus.serialport
@@ -75,7 +75,8 @@ class KModbusRtuMaster private constructor() : KModbus() {
         }
     }
 
-    fun  resolve(bytes: ByteArray, endian: ModbusEndian): ModbusRtuRespPacket? {
+
+    fun resolve(bytes: ByteArray, endian: ModbusEndian): ModbusRtuRespPacket? {
         return runCatching {
             val inputs = when (endian) {
                 ModbusEndian.ARRAY_BIG_BYTE_BIG -> bytes
@@ -93,27 +94,25 @@ class KModbusRtuMaster private constructor() : KModbus() {
             }
             val functionCode= inputs[1].toInt() and 0xFF
             val isFunctionCodeError = (functionCode and baseTenF) + 0x80 == functionCode
-            val startIndexOfData = 3
-//            "${inputs[0].toInt()} \t ${inputs.map { String.format("%02x", it) }}".log()
             if(isFunctionCodeError) {
                 val dataSize = inputs.size - 4
-                val values = ArrayList<Int>(dataSize)
-                repeat(dataSize) { values.add(inputs[startIndexOfData + it].toInt()) }
+                val newBytes = ByteArray(dataSize)
+                System.arraycopy(inputs, 3, newBytes, 0, dataSize)
                 ModbusRtuRespPacket(
                     mDeviceID = inputs[0].toInt(),
                     mFunctionCode = functionCode,
                     mBytesCount = dataSize,
-                    mValues =  values
+                    mValues =  newBytes
                 )
             } else {
                 val byteCount = inputs[2].toInt()
-                val values = ArrayList<Int>(byteCount)
-                repeat(byteCount) { values.add(inputs[startIndexOfData + it].toInt()) }
+                val newBytes = ByteArray(byteCount)
+                System.arraycopy(inputs, 3, newBytes, 0, byteCount)
                 ModbusRtuRespPacket(
                     mDeviceID = inputs[0].toInt(),
                     mFunctionCode = inputs[1].toInt(),
                     mBytesCount = byteCount,
-                    mValues =  values
+                    mValues =  newBytes
                 )
             }
         }

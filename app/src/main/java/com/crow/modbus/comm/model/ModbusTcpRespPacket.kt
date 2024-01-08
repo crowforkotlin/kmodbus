@@ -1,7 +1,6 @@
-package com.crow.modbus.comm.model
+package com.listen.x3player.kt.modbus.comm.model
 
 import android.util.Log
-import com.crow.modbus.ext.log
 import com.crow.modbus.ext.logger
 import java.nio.ByteBuffer
 import kotlin.math.abs
@@ -10,7 +9,7 @@ data class ModbusTcpRespPacket(
     val mDeviceID: Int,
     val mFunctionCode: Int,
     val mBytesCount: Int,
-    val mValues: List<Int>,
+    val mValues: ByteArray,
 ) {
 
     companion object {
@@ -19,49 +18,51 @@ data class ModbusTcpRespPacket(
 
     fun toFloatData(index: Int, precision: Int): String {
         return runCatching {
-            "INDEX = $index \t precision $precision".log()
-            "%.${precision}f".format(ByteBuffer.wrap(mValues.subList(index , index + 4).map { it.toByte() }.toByteArray()).float)
+            "%.${precision}f".format(ByteBuffer.wrap(byteArrayOf(mValues[index], mValues[index + 1], mValues[index + 2], mValues[index + 3])).float)
         }
             .onFailure { it.stackTraceToString().logger(level = Log.ERROR)  }
-            .getOrElse { DATA_ERROR }
+            .getOrElse { ModbusTcpRespPacket.DATA_ERROR }
     }
 
-    fun toIntData(intBitLength: Int = 2, isUnsigned: Boolean = false): List<Int> {
+    fun toIntData(intBitLength: Int = 2, isUnsigned: Boolean = false): List<Number> {
         return runCatching { when (intBitLength) {
-            1 -> mValues
+            1 -> mValues.map { it.toInt() }
             2 -> {
-                val chunkedValues = mValues.chunked(2)
-                val data = ArrayList<Int>(chunkedValues.size)
+                val size = mValues.size shr 1
+                val data = ArrayList<Number>(size)
                 if (isUnsigned) {
-                    for (ints in chunkedValues) {
-                        val value = ((ints[0] and 0xFF) shl 8) or (ints[1] and 0xFF)
-                        data.add(if (value >= 0) value else 32767 + abs(value))
+                    repeat(size) { index ->
+                        val pos = index shl 1
+                        data.add(((mValues[pos].toInt() and 0xFF) shl 8)
+                                or (mValues[pos + 1].toInt() and 0xFF))
                     }
                 } else {
-                    for (ints in chunkedValues) {
-                        data.add(((ints[0] and 0xFF) shl 8) or (ints[1] and 0xFF))
+                    repeat(size) { index ->
+                        val pos = index shl 1
+                        data.add((((mValues[pos].toInt() and 0xFF) shl 8)
+                                or (mValues[pos + 1].toInt() and 0xFF)).toShort())
                     }
                 }
                 data
             }
             4 -> {
-                val chunkedValues = mValues.chunked(4)
-                println(chunkedValues)
-                val data = ArrayList<Int>(chunkedValues.size)
+                val size = mValues.size shr 1
+                val data = ArrayList<Number>(size)
                 if (isUnsigned) {
-                    for (ints in chunkedValues) {
-                        val value = ((ints[0] and 0xFF) shl 24) or
-                                ((ints[1] and 0xFF) shl 16) or
-                                ((ints[2] and 0xFF) shl 8) or
-                                (ints[3] and 0xFF)
-                        data.add(if (value < 0) 32767 + value else value)
+                    repeat(size) { index ->
+                        val pos = index shl 2
+                        data.add(((mValues[pos].toLong() and 0xFFL) shl 24)
+                                or ((mValues[pos + 1].toLong() and 0xFFL) shl 16)
+                                or ((mValues[pos + 2].toLong() and 0xFFL) shl 8)
+                                or (mValues[pos + 3].toLong() and 0xFFL))
                     }
                 } else {
-                    for (ints in chunkedValues) {
-                        data.add(((ints[0] and 0xFF) shl 24) or
-                                ((ints[1] and 0xFF) shl 16) or
-                                ((ints[2] and 0xFF) shl 8) or
-                                (ints[3] and 0xFF))
+                    repeat(size) { index ->
+                        val pos = index shl 1
+                        data.add((mValues[pos].toInt() and 0xFF shl 24)
+                                or (mValues[pos + 1].toInt() and 0xFF shl 16)
+                                or (mValues[pos + 2].toInt() and 0xFF shl 8)
+                                or (mValues[pos + 3].toInt() and 0xFF))
                     }
                 }
                 data
@@ -77,32 +78,59 @@ data class ModbusTcpRespPacket(
             when (intBitLength) {
                 1 -> {
                     if (isUnsigned) {
-                        val value = ((mValues[index] and 0xFF) shl 8) or (mValues[index+1] and 0xFF)
-                        (if (value < 0) 32767 + (32769 - (abs(value))) else value).toString()
+                        (((mValues[index].toInt() and 0xFF) shl 8) or (mValues[index + 1].toInt() and 0xFF)).toString()
                     } else {
-                        val value = ((mValues[index] and 0xFF) shl 8) or (mValues[index + 1] and 0xFF)
-                        value.toString()
+                        ((mValues[index].toInt() shl 8) or mValues[index + 1].toInt()).toString()
                     }
                 }
                 2 -> {
                     if (isUnsigned) {
-                        val value = ((mValues[index] and 0xFF) shl 24) or
-                                ((mValues[index + 1] and 0xFF) shl 16) or
-                                ((mValues[index + 2] and 0xFF) shl 8) or
-                                (mValues[index + 3] and 0xFF)
-                        (if (value < 0) Int.MAX_VALUE.toLong() + abs(value) else value.toLong()).toString()
+                        (((mValues[index].toInt() and 0xFF) shl 8)
+                                or (mValues[index + 1].toInt() and 0xFF)).toString()
                     } else {
-                        val value = ((mValues[index] and 0xFF) shl 24) or
-                                ((mValues[index + 1] and 0xFF) shl 16) or
-                                ((mValues[index + 2] and 0xFF) shl 8) or
-                                (mValues[index + 3] and 0xFF)
-                        value.toString()
+                        (((mValues[index].toInt() and 0xFF shl 8)
+                                or (mValues[index + 1].toInt() and 0xFF)).toShort()).toString()
+                    }
+                }
+                4 -> {
+                    if (isUnsigned) {
+                        (((mValues[index].toLong() and 0xFFL) shl 24)
+                                or ((mValues[index + 1].toLong() and 0xFFL) shl 16)
+                                or ((mValues[index + 2].toLong() and 0xFFL) shl 8)
+                                or (mValues[index + 3].toLong() and 0xFFL)).toString()
+                    } else {
+                        ((mValues[index].toInt() and 0xFF shl 24)
+                                or (mValues[index + 1].toInt() and 0xFF shl 16)
+                                or (mValues[index + 2].toInt() and 0xFF shl 8)
+                                or (mValues[index + 3].toInt() and 0xFF)).toString()
                     }
                 }
                 else -> error("不合法的整形长度参数！")
             }
         }
-            .onFailure { it.stackTraceToString().logger(level = Log.ERROR)  }
-            .getOrElse { DATA_ERROR }
+            .onFailure { println(it.stackTraceToString()) }
+            .getOrElse { ModbusTcpRespPacket.DATA_ERROR }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ModbusTcpRespPacket
+
+        if (mDeviceID != other.mDeviceID) return false
+        if (mFunctionCode != other.mFunctionCode) return false
+        if (mBytesCount != other.mBytesCount) return false
+        if (!mValues.contentEquals(other.mValues)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = mDeviceID
+        result = 31 * result + mFunctionCode
+        result = 31 * result + mBytesCount
+        result = 31 * result + mValues.contentHashCode()
+        return result
     }
 }

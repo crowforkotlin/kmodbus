@@ -1,0 +1,4 @@
+com.crow.modbus.test.app-androidTest-0 E:\programing\Android\2023\KModbus\app\build\generated\res\resValues\androidTest\debug
+com.crow.modbus.test.app-mergeDebugAndroidTestResources-1 E:\programing\Android\2023\KModbus\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.crow.modbus.test.app-mergeDebugAndroidTestResources-2 E:\programing\Android\2023\KModbus\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.crow.modbus.test.app-debugAndroidTest-3 E:\programing\Android\2023\KModbus\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources

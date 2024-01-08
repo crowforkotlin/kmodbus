@@ -1,14 +1,16 @@
 @file:Suppress("SpellCheckingInspection")
 
-package com.crow.modbus.comm
+package com.listen.x3player.kt.modbus.comm
 
+import com.crow.modbus.comm.KModbus
 import com.crow.modbus.comm.model.ModbusEndian
 import com.crow.modbus.comm.model.ModbusFunction
-import com.crow.modbus.comm.model.ModbusTcpRespPacket
 import com.crow.modbus.ext.BytesOutput
 import com.crow.modbus.ext.baseTenF
+import com.crow.modbus.ext.log
 import com.crow.modbus.ext.logger
 import com.crow.modbus.ext.toReverseInt8
+import com.listen.x3player.kt.modbus.comm.model.ModbusTcpRespPacket
 
 /*************************
  * @Package: com.crow.modbus.serialport
@@ -111,23 +113,24 @@ class KModbusTCPMaster private constructor() : KModbus() {
 //            "${inputs[0].toInt()} \t ${inputs.map { String.format("%02x", it) }}".log()
             if(isFunctionCodeError) {
                 val dataSize = inputs.size - 11
-                val values = ArrayList<Int>(dataSize)
-                repeat(dataSize) { values.add(inputs[startIndexOfData + it].toInt()) }
+                val newBytes = ByteArray(dataSize)
+                System.arraycopy(inputs, startIndexOfData, newBytes, 0, dataSize)
                 ModbusTcpRespPacket(
                     mDeviceID = inputs[6].toInt(),
                     mFunctionCode = functionCode,
                     mBytesCount = dataSize,
-                    mValues =  values
+                    mValues =  newBytes
                 )
             } else {
                 val byteCount = inputs[8].toInt()
-                val values = ArrayList<Int>(byteCount)
-                repeat(byteCount) { values.add(inputs[startIndexOfData + it].toInt()) }
+                val newBytes = ByteArray(byteCount)
+                System.arraycopy(inputs, startIndexOfData, newBytes, 0, byteCount)
+                newBytes.map { String.format("%02x", it) }.log()
                 ModbusTcpRespPacket(
                     mDeviceID = inputs[6].toInt(),
                     mFunctionCode = functionCode,
                     mBytesCount = byteCount,
-                    mValues =  values
+                    mValues =  newBytes
                 )
             }
         }
