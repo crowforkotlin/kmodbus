@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.crow.modbus"
+    namespace = "com.crow.kmodbus"
 
     compileSdk = 34
 
@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.crow.modbus"
+        applicationId = "com.crow.kmodbus"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -65,6 +65,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":lib_modbus"))
     implementation(libs.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.material)
