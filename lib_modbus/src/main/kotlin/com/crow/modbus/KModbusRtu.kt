@@ -6,8 +6,20 @@ import com.crow.modbus.interfaces.IKModbusReadData
 import com.crow.modbus.interfaces.IKModbusWriteData
 import com.crow.modbus.interfaces.ISerialPortExt
 import com.crow.modbus.model.KModbusType
+import com.crow.modbus.model.KModbusFunction.READ_COILS
+import com.crow.modbus.model.KModbusFunction.READ_DISCRETE_INPUTS
+import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
+import com.crow.modbus.model.KModbusFunction.READ_INPUT_REGISTERS
+import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_COIL
+import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_REGISTER
+import com.crow.modbus.model.KModbusRtuRespPacket
+import com.crow.modbus.model.getFunction
 import com.crow.modbus.serialport.SerialPortManager
 import com.crow.modbus.tools.error
+import com.crow.modbus.tools.info
+import com.crow.modbus.tools.readBytes
+import com.crow.modbus.tools.toInt16
+import com.crow.modbus.tools.toUInt16LittleEndian
 
 /**
  * ● KModbusRtu
@@ -84,7 +96,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
                 var headReaded = 0
                 while (headReaded < headByteSize) {
                     val readed = bis.read(headBytes, headReaded, headByteSize - headReaded)
-                    if (readed == - 1) { break}
+                    if (readed == - 1) { break }
                     headReaded += readed
                 }
                 val completeByteSize = headBytes.last().toInt() + 5
@@ -111,7 +123,31 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      */
     private fun repeatSlaveActionOnRead(onReceive: suspend (ByteArray) -> Unit) {
         mSerialPortManager.onReadRepeatEnv {
+            it?.let { bis ->
+                runCatching {
+                    val slave = bis.read()
+                    when(val function = getFunction(bis.read())) {
+                        WRITE_SINGLE_REGISTER, WRITE_SINGLE_COIL -> {
+                            val bytes = bis.readBytes(6)
+                            val address = toInt16(bytes)
+                            val values = byteArrayOf(bytes[2], bytes[3])
+                            val crc = toUInt16LittleEndian(bytes, 4)
+                            KModbusRtuRespPacket(slave, function, address, null, values, crc).verifyCRC16()
+                        }
+                        READ_COILS, READ_DISCRETE_INPUTS, READ_INPUT_REGISTERS, READ_HOLDING_REGISTERS -> {
+                            val bytes = bis.readBytes(6)
+                            val address = toInt16(bytes)
+                            val count = toInt16(bytes, 2)
+                            val crc = toUInt16LittleEndian(bytes, 4)
+                            KModbusRtuRespPacket(slave, function, address, count, null, crc).verifyCRC16()
+                        }
+                        else -> {
 
+                        }
+                    }
+                }
+                    .onFailure { catch -> catch.stackTraceToString().error() }
+            }
         }
     }
 

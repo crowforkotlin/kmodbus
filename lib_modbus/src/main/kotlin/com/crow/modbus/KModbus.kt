@@ -4,7 +4,15 @@ package com.crow.modbus
 
 import com.crow.modbus.model.ModbusErrorType
 import com.crow.modbus.model.ModbusException
-import com.crow.modbus.model.ModbusFunction
+import com.crow.modbus.model.KModbusFunction
+import com.crow.modbus.model.KModbusFunction.READ_COILS
+import com.crow.modbus.model.KModbusFunction.READ_DISCRETE_INPUTS
+import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
+import com.crow.modbus.model.KModbusFunction.READ_INPUT_REGISTERS
+import com.crow.modbus.model.KModbusFunction.WRITE_COILS
+import com.crow.modbus.model.KModbusFunction.WRITE_HOLDING_REGISTERS
+import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_COIL
+import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_REGISTER
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.CRC16
 
@@ -24,13 +32,12 @@ open class KModbus protected constructor() {
      * ● 2023-10-16 16:42:18 周一 下午
      * @author crowforkotlin
      */
-    fun buildMasterRequestOutput(slave: Int, function: ModbusFunction, startAddress: Int, count: Int, value: Int?, values: IntArray?, isTcp: Boolean = false): BytesOutput {
+    fun buildMasterRequestOutput(slave: Int, function: KModbusFunction, startAddress: Int, count: Int = 1, value: Int?, values: IntArray?, isTcp: Boolean = false): BytesOutput {
 
         //检查参数是否符合协议规定
         when {
             slave !in 0..0xFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid slave $slave")
             startAddress !in 0..0xFFFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid startAddress $startAddress")
-            count !in 1..0xFF -> throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid count $count")
         }
 
         val output = BytesOutput()
@@ -42,24 +49,25 @@ open class KModbus protected constructor() {
         when(function) {
 
             // 读线圈寄存器 、离散输入寄存器、保持寄存器、输入寄存器
-            ModbusFunction.READ_COILS, ModbusFunction.READ_DISCRETE_INPUTS, ModbusFunction.READ_INPUT_REGISTERS, ModbusFunction.READ_HOLDING_REGISTERS -> {
+            READ_COILS, READ_DISCRETE_INPUTS, READ_INPUT_REGISTERS, READ_HOLDING_REGISTERS -> {
+                if(count !in 1..0xFF) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid count $count")
                 output.writeInt8(function.mCode)
                 output.writeInt16(startAddress)
                 output.writeInt16(count)
             }
-            ModbusFunction.WRITE_SINGLE_COIL, ModbusFunction.WRITE_SINGLE_REGISTER -> {
+            WRITE_SINGLE_COIL, WRITE_SINGLE_REGISTER -> {
 
                 var valueCopy = value ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function\t , Data must be passed in!")
 
                 //写单个寄存器指令
-                if (function == ModbusFunction.WRITE_SINGLE_COIL) if (value != 0) valueCopy = 0xff00 //如果为线圈寄存器（写1时为 FF 00,写0时为00 00）
+                if (function == WRITE_SINGLE_COIL) if (value != 0) valueCopy = 0xff00 //如果为线圈寄存器（写1时为 FF 00,写0时为00 00）
 
                 output.writeInt8(function.mCode)
                 output.writeInt16(startAddress)
                 output.writeInt16(valueCopy)
             }
-            ModbusFunction.WRITE_HOLDING_REGISTERS -> {
-
+            WRITE_HOLDING_REGISTERS -> {
+                if(count !in 1..0xFF) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid count $count")
                 //写多个保持寄存器
                 output.writeInt8(function.mCode)
                 output.writeInt16(startAddress)
@@ -69,7 +77,8 @@ open class KModbus protected constructor() {
                 //写入数据
                 (values ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in!")).forEach { output.writeInt16(it) }
             }
-            ModbusFunction.WRITE_COILS -> {
+            WRITE_COILS -> {
+                if(count !in 1..0xFF) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid count $count")
                 if (values == null || values.isEmpty()) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in and cannot be empty!")
                 output.writeInt8(function.mCode)
                 output.writeInt16(startAddress)
@@ -98,7 +107,7 @@ open class KModbus protected constructor() {
     fun toCalculateCRC16(output: BytesOutput): BytesOutput {
 
         //计算CRC校验码
-        output.writeInt16Reversal(CRC16.compute(output.toByteArray()))
+        output.writeInt16Reversal(CRC16.compute(output.toByteArray()).also { println("CRC $it") })
         return output
     }
 

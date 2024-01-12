@@ -3,7 +3,7 @@
 package com.crow.modbus
 
 import com.crow.modbus.model.ModbusEndian
-import com.crow.modbus.model.ModbusFunction
+import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.fromAsciiInt8
 import com.crow.modbus.tools.toAsciiHexBytes
@@ -36,7 +36,7 @@ class KModbusASCIIMaster private constructor() : com.crow.modbus.KModbus() {
     private val HEAD = 0x3A
     private val END = byteArrayOf(0x0d, 0x0A)
 
-    fun build(function: ModbusFunction, slave: Int, startAddress: Int, count: Int, value: Int? = null, values: IntArray? = null, endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG): ByteArray {
+    fun build(function: KModbusFunction, slave: Int, startAddress: Int, count: Int, value: Int? = null, values: IntArray? = null, endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG): ByteArray {
         val bytes = BytesOutput()
         val output = buildMasterRequestOutput(slave, function, startAddress, count, value, values).toByteArray()
         val pLRC = fromAsciiInt8(toCalculateLRC(output))

@@ -14,12 +14,12 @@ class BytesOutput : ByteArrayOutputStream() {
     }
 
     fun writeInt16(int32: Int) {
-        val bytes: Bytes = fromInt16(int32)
+        val bytes: ByteArray = fromInt16(int32)
         this.write(bytes, 0, bytes.size)
     }
 
     fun writeInt16Reversal(int32: Int) {
-        val bytes: Bytes = fromInt16LittleEndian(int32)
+        val bytes: ByteArray = fromInt16LittleEndian(int32)
         this.write(bytes, 0, bytes.size)
     }
 
@@ -28,7 +28,7 @@ class BytesOutput : ByteArrayOutputStream() {
         this.write(bytes, 0, bytes.size)
     }
 
-    fun writeBytes(bytes: Bytes, len: Int) {
+    fun writeBytes(bytes: ByteArray, len: Int) {
         this.write(bytes, 0, len)
     }
 }

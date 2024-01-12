@@ -1,7 +1,7 @@
 package com.crow.modbus
 
 import com.crow.modbus.model.ModbusEndian
-import com.crow.modbus.model.ModbusFunction
+import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
@@ -41,10 +41,10 @@ class KModbusRtuMaster private constructor() : KModbus() {
      * @author crowforkotlin
      */
     fun build(
-        function: ModbusFunction,
+        function: KModbusFunction,
         slave: Int,
         startAddress: Int,
-        count: Int,
+        count: Int = 1,
         value: Int? = null,
         values: IntArray? = null,
         endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG,

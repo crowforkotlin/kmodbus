@@ -38,6 +38,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
 
     internal interface ICompleteRepeat { suspend fun onComplete(scope: CoroutineScope): Long }
 
+    internal var mBaudRate: Int = BaudRate.S_9600
     internal val mReadJob: Job = SupervisorJob()
     internal var  mWriteJob: Job = SupervisorJob()
     internal val mReadContext = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mReadJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() })
@@ -99,6 +100,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
             }
         }
 
+        mBaudRate = baudRate
         mFileDescriptor = open(device.absolutePath, baudRate, SerialPortParityFunction.NONE, 1, 8)
         mFileInputStream = BufferedInputStream(FileInputStream(mFileDescriptor))
         mFileOutputStream = BufferedOutputStream(FileOutputStream(mFileDescriptor))
@@ -153,6 +155,14 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     fun removeOpenFailureListener(listener: ISerialPortFailure) { mFailureListener.remove(listener) }
     fun removeAllOpenFailureListener() { mFailureListener.clear() }
 
+    fun getDataDuration(): Long {
+        return when(mBaudRate) {
+            in 0..BaudRate.S_9600 -> 50L
+            in BaudRate.S_9600..BaudRate.S_115200 -> 25L
+            else -> 10L
+        }
+    }
+
     /**
      * ● 重复写入
      *
@@ -176,20 +186,38 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      * @author crowforkotlin
      */
     internal open fun onReadRepeat(onReceive: suspend (ByteArray) -> Unit) {
-        val maxReadSize = 548
-        onReadRepeatEnv { bis ->
-            if (null != bis) {
-                val bytes = ByteArray(maxReadSize)
-                var mReadedBytes = 0
-                repeat(15) {
-                    delay(20)
-                    if (bis.available() > 0) {
-                        mReadedBytes += withContext(Dispatchers.IO) { bis.read(bytes, mReadedBytes, bytes.size - mReadedBytes) }
+        onReadRepeatEnv {
+            it?.let { bis ->
+                var available = 0
+                var bytes = ByteArray(0)
+                var firstVal: Byte = 0
+                runCatching {
+                    if (bis.available() == 0) {
+                        firstVal = bis.read().toByte()
+                    } else {
+                        if (bytes.isEmpty()) {
+                            bytes = ByteArray(available + 1)
+                            bytes[0] = firstVal
+                            bis.read(bytes, 1, available)
+                        } else {
+                            val size = bytes.size
+                            val tempBytes = ByteArray(available)
+                            bis.read(tempBytes, 0, available)
+                            val sumOfBytesSize = size + available
+                            val sumOfBytes = ByteArray(sumOfBytesSize)
+                            System.arraycopy(bytes, 0, sumOfBytes, 0, size)
+                            System.arraycopy(tempBytes, 0, sumOfBytes, size, available)
+                            bytes = sumOfBytes
+                        }
+                    }
+                    delay(getDataDuration())
+                    available = bis.available()
+                    if (available == 0) {
+                        onReceive(bytes)
+                        bytes = ByteArray(0)
                     }
                 }
-                onReceive(bytes)
-            } else {
-                delay(1000)
+                    .onFailure { cause -> cause.stackTraceToString().error() }
             }
         }
     }

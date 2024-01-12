@@ -3,7 +3,7 @@
 package com.crow.modbus
 
 import com.crow.modbus.model.ModbusEndian
-import com.crow.modbus.model.ModbusFunction
+import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.model.ModbusTcpRespPacket
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.baseTenF
@@ -53,7 +53,7 @@ class KModbusTCPMaster private constructor() : com.crow.modbus.KModbus() {
      * @author crowforkotlin
      */
     fun build(
-        function: ModbusFunction,
+        function: KModbusFunction,
         slave: Int,
         startAddress: Int,
         count: Int,
