@@ -13,8 +13,10 @@ import com.crow.modbus.model.KModbusFunction.WRITE_COILS
 import com.crow.modbus.model.KModbusFunction.WRITE_HOLDING_REGISTERS
 import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_COIL
 import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_REGISTER
+import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.CRC16
+import com.crow.modbus.tools.toReverseInt8
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -98,6 +100,25 @@ open class KModbus protected constructor() {
         // TODO
     }
 
+    internal fun getArray(array: ByteArray, endian: ModbusEndian) : ByteArray {
+        return when (endian) {
+            ModbusEndian.ARRAY_BIG_BYTE_BIG -> array
+            ModbusEndian.ARRAY_LITTLE_BYTE_BIG -> array.reversedArray()
+            ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
+                val size = array.size
+                val bytes = ByteArray(size)
+                val indexSize = size - 1
+                array.forEachIndexed { index, byte -> bytes[indexSize - index] = toReverseInt8(byte.toInt()).toByte() }
+                bytes
+            }
+            ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
+                val bytes = ByteArray(array.size)
+                array.forEachIndexed { index, byte -> bytes[index] = toReverseInt8(byte.toInt()).toByte() }
+                bytes
+            }
+        }
+    }
+
     /**
      * ● CRC校验
      *
@@ -105,9 +126,8 @@ open class KModbus protected constructor() {
      * @author crowforkotlin
      */
     fun toCalculateCRC16(output: BytesOutput): BytesOutput {
-
         //计算CRC校验码
-        output.writeInt16Reversal(CRC16.compute(output.toByteArray()).also { println("CRC $it") })
+        output.writeInt16Reversal(CRC16.compute(output.toByteArray()))
         return output
     }
 

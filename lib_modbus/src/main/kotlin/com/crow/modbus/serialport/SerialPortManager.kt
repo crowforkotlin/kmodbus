@@ -15,8 +15,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -25,6 +27,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.Executors
+import kotlin.coroutines.resume
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -169,12 +172,13 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      * ● 2023-12-01 10:46:03 周五 上午
      * @author crowforkotlin
      */
-    internal open fun writeRepeat(interval: Long, onWrite: suspend () -> ByteArray?) {
+    internal inline fun writeRepeat(interval: Long, crossinline onWrite: suspend () -> ByteArray?, crossinline complete: suspend (CoroutineScope) -> Unit) {
         mWriteJob.cancelChildren()
         mWriteContext.launch {
             while (true) {
                 delay(interval)
                 writeBytes(onWrite() ?: continue)
+                complete(this)
             }
         }
     }
@@ -235,7 +239,10 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
                 "The read stream has not been opened yet. Maybe the serial port is not open?".error()
                 return@launch
             }
-            while (true) { onRepat(mFileInputStream) }
+            while (true) {
+                runCatching { onRepat(mFileInputStream) }
+                    .onFailure { cause -> cause.stackTraceToString().error() }
+            }
         }
     }
 
@@ -245,7 +252,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      * ● 2023-12-01 10:47:02 周五 上午
      * @author crowforkotlin
      */
-    open fun writeBytes(bytes: ByteArray): Boolean {
+    open suspend fun writeBytes(bytes: ByteArray): Boolean {
         mFileOutputStream?.let {
             it.write(bytes)
             it.flush()
@@ -262,8 +269,6 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     open fun cancelAllJob() {
         mReadJob.cancel()
         mWriteJob.cancel()
-        mReadContext.cancel()
-        mWriteContext.cancel()
     }
 
     /**

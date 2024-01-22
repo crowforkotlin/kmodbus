@@ -1,29 +1,47 @@
 package com.crow.kmodbus
 
-import com.crow.modbus.KModbusRtuMaster
+import android.icu.text.SimpleDateFormat
+import android.icu.util.Calendar
+import com.crow.modbus.KModbusRtu
 import com.crow.modbus.model.KModbusFunction
+import com.crow.modbus.tools.fromFloat32
+import com.crow.modbus.tools.fromInt32
+import com.crow.modbus.tools.toFloat32
+import com.crow.modbus.tools.toFloatData
+import com.crow.modbus.tools.toHexList
+import com.crow.modbus.tools.toInt32
+import com.crow.modbus.tools.toIntArray
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
-import kotlin.experimental.or
+import java.util.Date
 
 @OptIn(ExperimentalStdlibApi::class)
 suspend fun main() {
-    val array = ByteBuffer.wrap(ByteArray(4)).putFloat("156.7".toFloat()).array()
-    println(array.map { it.toHexString() })
-    println(((array[0].toInt() and 0xFF) shl 8).toShort() or (array[1].toInt() and 0xFF).toShort())
-    println(((array[2].toInt() and 0xFF) shl 8).toShort() or (array[3].toInt() and 0xFF).toShort())
-    println(ByteBuffer.wrap(ByteArray(2)).putShort(17180).array().map { it.toHexString() })
-    println(ByteBuffer.wrap(ByteArray(2)).putShort(-19661).array().map { it.toHexString() })
-    val scope1 = CoroutineScope(Dispatchers.IO)
-    val scope2 = CoroutineScope(Job())
-    println(
-        KModbusRtuMaster.getInstance().build(KModbusFunction.WRITE_SINGLE_REGISTER, 1, 0, value = 3).map {
-            it.toHexString()
-        })
-    val a = byteArrayOf(0x06, 0x00, 0x00, 0x00, 0x01, 0x49, 0xdb.toByte())
-
-    delay(100000)
+    runCatching {
+        var job1: Deferred<Unit>? = null
+        var job2: Job? = null
+        val scope = CoroutineScope(Dispatchers.IO)
+        println("RUNNING")
+        val timeJob = scope.launch(start = CoroutineStart.LAZY) {
+            delay(2000)
+            job1?.cancel()
+            println("CANCEL")
+        }
+        job1 = scope.async {
+            timeJob.start()
+            delay(500)
+            timeJob.cancel()
+            delay(Long.MAX_VALUE)
+        }
+        job1.await()
+    }
+        .onFailure { println(it.stackTraceToString()) }
+    println("END")
 }

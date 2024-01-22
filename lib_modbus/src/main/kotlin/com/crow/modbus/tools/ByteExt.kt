@@ -4,6 +4,7 @@ package com.crow.modbus.tools
 
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
+import java.lang.Float.floatToIntBits
 import java.nio.ByteBuffer
 import kotlin.experimental.or
 
@@ -23,15 +24,29 @@ fun toReverseInt8(value: Int): Int {
 
 
 /**
- * ● 大端序Bytes 转 Int32
+ * ● 无符号Int32 为Long类型
  *
- * ● 2023-09-13 14:53:19 周三 下午
+ * ● 2024-01-10 17:46:17 周三 下午
+ * @author crowforkotlin
  */
-fun toInt32(bytes: ByteArray, startIndex: Int = 0, isLittleEndian: Boolean = false): Int {
-    return((bytes[startIndex].toInt() and 0xFF) shl 24) or
-            ((bytes[startIndex + 1].toInt() and 0xFF) shl 16) or
-            ((bytes[startIndex + 2].toInt() and 0xFF) shl 8) or
-            (bytes[startIndex + 3].toInt() and 0xFF)
+fun toUInt32(array: ByteArray, index: Int = 0): Long {
+    return (((array[index].toLong() and 0xFFL) shl 24) or
+            ((array[index + 1].toLong() and 0xFFL) shl 16) or
+            ((array[index + 2].toLong() and 0xFFL) shl 8) or
+            (array[index + 3].toLong() and 0xFFL))
+}
+
+/**
+ * ● 有符号Int32
+ *
+ * ● 2024-01-10 17:46:17 周三 下午
+ * @author crowforkotlin
+ */
+fun toInt32(array: ByteArray, index: Int = 0): Int {
+    return (((array[index].toInt() and 0xFF) shl 24) or
+            ((array[index + 1].toInt() and 0xFF) shl 16) or
+            ((array[index + 2].toInt() and 0xFF) shl 8) or
+            (array[index + 3].toInt() and 0xFF))
 }
 
 /**
@@ -40,7 +55,7 @@ fun toInt32(bytes: ByteArray, startIndex: Int = 0, isLittleEndian: Boolean = fal
  * ● 2024-01-10 17:46:26 周三 下午
  * @author crowforkotlin
  */
-fun toUInt16(array: ByteArray, index: Int): Int {
+fun toUInt16(array: ByteArray, index: Int = 0): Int {
     return ((array[index].toInt() and 0xFF) shl 8) or (array[index + 1].toInt() and 0xFF)
 }
 
@@ -217,6 +232,12 @@ fun fromAsciiInt8(value: Int): Pair<Byte, Byte> {
     return toAsciiInt(hight).toByte() to toAsciiInt(low).toByte()
 }
 
+/**
+ * ● AscillInt16 to ByteArray
+ *
+ * ● 2024-01-16 17:19:46 周二 下午
+ * @author crowforkotlin
+ */
 fun fromAsciiInt16(value: Int): ByteArray {
     val hight = fromAsciiInt8((value shr 8) and 0xFF)
     val low= fromAsciiInt8(value and 0xFF)
@@ -228,6 +249,12 @@ fun fromAsciiInt16(value: Int): ByteArray {
     )
 }
 
+/**
+ * ● Int To AsciiInt
+ *
+ * ● 2024-01-16 17:20:07 周二 下午
+ * @author crowforkotlin
+ */
 fun toAsciiInt(valueHex: Int): Int { return  if (valueHex < 10) valueHex + baseASCII_0 else valueHex - 10 + baseASCII_A }
 
 fun toAsciiHexByte(value: Byte, stream: ByteArrayOutputStream) {
@@ -243,11 +270,33 @@ fun toAsciiHexBytes(data: ByteArray): ByteArray {
     return stream.toByteArray()
 }
 
+fun fromFloat32(value: Float): ByteArray {
+    val intBits = floatToIntBits(value)  // 将float转换为Int位表示
+    return byteArrayOf(
+        (intBits shr 24).toByte(),  // 第一个字节（最高有效字节）
+        (intBits shr 16).toByte(),  // 第二个字节
+        (intBits shr 8).toByte(),   // 第三个字节
+        (intBits).toByte()          // 第四个字节（最低有效字节）
+    )
+}
+
+fun toFloat32(value: ByteArray): Float {
+    val intBits = (value[0].toInt() and 0xFF shl 24) or
+            (value[1].toInt() and 0xFF shl 16) or
+            (value[2].toInt() and 0xFF shl 8) or
+            (value[3].toInt() and 0xFF)
+    return Float.fromBits(intBits)
+}
+
+
+fun ByteArray.toHexList(): List<String> = map { String.format("%02x", it) }
+
 fun ByteArray.copy(): ByteArray {
     val array = ByteArray(size)
     System.arraycopy(this, 0, array, 0, size)
     return array
 }
+
 fun BufferedInputStream.readBytes(size: Int, isReverse: Boolean = false): ByteArray {
     val bytes = ByteArray(size)
     var bytesReaded = 0
@@ -259,40 +308,22 @@ fun BufferedInputStream.readBytes(size: Int, isReverse: Boolean = false): ByteAr
     return if (isReverse) bytes.reversedArray() else bytes
 }
 
-fun ByteArray.toIntData(intBitLength: Int = 2, isUnsigned: Boolean = false): List<Int> {
+fun ByteArray.toIntData(intBitLength: Int = 2, isUnsigned: Boolean = false): List<Number> {
     return runCatching {
         when (intBitLength) {
             1 -> map { it.toInt() }
             2 -> {
                 val size = size shr 1
                 val data = ArrayList<Int>(size)
-                if (isUnsigned) {
-                    repeat(size) { index ->
-                        val pos = index shl 1
-                        data.add(((this[pos].toInt() and 0xFF) shl 8) or (this[pos + 1].toInt() and 0xFF))
-                    }
-                } else {
-                    repeat(size) { index ->
-                        val pos = index shl 1
-                        data.add((this[pos].toInt() shl 8) or (this[pos + 1].toInt() and 0xFF))
-                    }
-                }
+                if (isUnsigned) repeat(size) { index -> data.add(toUInt16(this, index shl 1)) }
+                else repeat(size) { index -> data.add(toInt16(this, index shl 1)) }
                 data
             }
             4 -> {
                 val size = this.size shr 1
-                val data = ArrayList<Int>(size)
-                if (isUnsigned) {
-                    repeat(size) { index ->
-                        val pos = index shl 2
-                        data.add(((this[pos].toInt() and 0xFF) shl 24) or ((this[pos + 1].toInt() and 0xFF) shl 16) or ((this[pos + 2].toInt() and 0xFF) shl 8) or (this[pos + 3].toInt() and 0xFF))
-                    }
-                } else {
-                    repeat(size) { index ->
-                        val pos = index shl 1
-                        data.add((this[pos].toInt() shl 24) or (this[pos + 1].toInt()shl 16) or (this[pos + 2].toInt() shl 8) or (this[pos + 3].toInt() and 0xFF))
-                    }
-                }
+                val data = ArrayList<Number>(size)
+                if (isUnsigned) repeat(size) { index -> data.add(toUInt32(this, index shl 2)) }
+                else repeat(size) { index -> data.add(toInt32(this, index shl 1)) }
                 data
             }
             else -> kotlin.error("不合法的整形长度参数！")
@@ -303,35 +334,28 @@ fun ByteArray.toIntData(intBitLength: Int = 2, isUnsigned: Boolean = false): Lis
 }
 
 fun ByteArray.toFloatData(index: Int, precision: Int): String {
-    return runCatching {
-        "%.${precision}f".format(ByteBuffer.wrap(byteArrayOf(this[index], this[index + 1], this[index + 2], this[index + 3])).float)
-    }
+    return runCatching { "%.${precision}f".format(toFloat32(byteArrayOf(this[index], this[index + 1], this[index + 2], this[index + 3]))) }
         .onFailure { it.stackTraceToString().error()  }
-        .getOrElse { DATA_ERROR }
+        .getOrElse { "0.0" }
 }
 
 fun ByteArray.toIntData(index: Int, intBitLength: Int = 2, isUnsigned: Boolean = false): String {
     return runCatching {
-        val byte1 = this[index].toInt()
-        val byte2 = this[index + 1].toInt()
         when (intBitLength) {
-            1 -> {
-                if (isUnsigned) {
-                    (((byte1 and 0xFF) shl 8) or (byte2 and 0xFF)).toString()
-                } else {
-                    ((byte1 shl 8) or byte2).toString()
-                }
-            }
-            2 -> {
-                if (isUnsigned) {
-                    (((byte1 and 0xFF) shl 24) or ((byte2 and 0xFF) shl 16) or ((this[index + 2].toInt() and 0xFF) shl 8) or (this[index + 3].toInt() and 0xFF)).toString()
-                } else {
-                    ((byte1 shl 24) or (byte2 shl 16) or (this[index + 2].toInt() shl 8) or (this[index + 3].toInt() and 0xFF)).toString()
-                }
-            }
+            1 -> this[index].toInt().toString()
+            2 -> (if (isUnsigned) toUInt16(this, index) else toInt16(this, index)).toString()
+            4 -> (if (isUnsigned) toUInt32(this, index) else toInt32(this, index)).toString()
             else -> kotlin.error("不合法的整形长度参数！")
         }
     }
         .onFailure { it.stackTraceToString().error()  }
-        .getOrElse { DATA_ERROR }
+        .getOrElse { "0" }
 }
+
+/**
+ * ● 浮点数转Int字节数组，一般不会超过两个元素
+ *
+ * ● 2024-01-16 17:26:17 周二 下午
+ * @author crowforkotlin
+ */
+fun Float.toIntArray() = with(fromFloat32(this)) { intArrayOf(toInt16(this, 0), toInt16(this, 2)) }
