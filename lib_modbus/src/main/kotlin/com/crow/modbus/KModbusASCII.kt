@@ -1,27 +1,23 @@
-@file:Suppress("SpellCheckingInspection", "unused")
-
 package com.crow.modbus
 
 import com.crow.modbus.interfaces.IKModbusWriteData
 import com.crow.modbus.interfaces.ISerialPortExt
 import com.crow.modbus.model.KModbusFunction
-import com.crow.modbus.model.KModbusFunction.READ_COILS
-import com.crow.modbus.model.KModbusFunction.READ_DISCRETE_INPUTS
-import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
-import com.crow.modbus.model.KModbusFunction.READ_INPUT_REGISTERS
-import com.crow.modbus.model.KModbusFunction.WRITE_COILS
-import com.crow.modbus.model.KModbusFunction.WRITE_HOLDING_REGISTERS
-import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_COIL
-import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_REGISTER
 import com.crow.modbus.model.KModbusRtuMasterResp
 import com.crow.modbus.model.KModbusRtuSlaveResp
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.model.getFunction
 import com.crow.modbus.serialport.SerialPortManager
+import com.crow.modbus.tools.BytesOutput
+import com.crow.modbus.tools.asciiHexToByte
 import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
+import com.crow.modbus.tools.info
 import com.crow.modbus.tools.readBytes
+import com.crow.modbus.tools.toAsciiHexByte
+import com.crow.modbus.tools.toAsciiHexBytes
+import com.crow.modbus.tools.toHexList
 import com.crow.modbus.tools.toInt16
 import com.crow.modbus.tools.toUInt16LittleEndian
 import kotlinx.coroutines.CoroutineScope
@@ -34,15 +30,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.util.concurrent.Executors
+import kotlin.experimental.and
 
 /**
- * ● KModbusRtu
+ * ● KModbusASCll$
  *
- * ● 2023/12/1 10:14
+ * ● 2024/1/23 18:42
  * @author crowforkotlin
- * @formatter:on
  */
-class KModbusRtu : KModbus(), ISerialPortExt {
+class KModbusASCII : KModbus(), ISerialPortExt {
+
+    companion object {
+        private val HEAD = 0x3A
+        private val END = byteArrayOf(0x0d, 0x0A)
+    }
 
     /**
      * ● 读取监听
@@ -79,19 +80,41 @@ class KModbusRtu : KModbus(), ISerialPortExt {
 
     private var mWriteJob: Job = Job()
     private val mTaskJob by lazy { SupervisorJob() }
-    private val mTaskScope by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mTaskJob) }
+    private val mTaskScope by lazy {
+        CoroutineScope(
+            Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mTaskJob
+        )
+    }
+
+    /**
+     * ● 跳过等待
+     *
+     * ● 2024-01-25 18:06:23 周四 下午
+     * @author crowforkotlin
+     */
+    var mSkipAwait: Boolean = false
 
     override fun reOpenSerialPort(ttySNumber: Int, baudRate: Int) {
         closeSerialPort()
         openSerialPort(ttySNumber, baudRate)
     }
+
     override fun reOpenSerialPort(path: String, baudRate: Int) {
         closeSerialPort()
         openSerialPort(path, baudRate)
     }
-    override fun openSerialPort(ttysNumber: Int, baudRate: Int) { mSerialPortManager.openSerialPort(ttysNumber, baudRate) }
-    override fun openSerialPort(path: String, baudRate: Int) { mSerialPortManager.openSerialPort(path, baudRate) }
-    override fun closeSerialPort(): Boolean { return mSerialPortManager.closeSerialPort() }
+
+    override fun openSerialPort(ttysNumber: Int, baudRate: Int) {
+        mSerialPortManager.openSerialPort(ttysNumber, baudRate)
+    }
+
+    override fun openSerialPort(path: String, baudRate: Int) {
+        mSerialPortManager.openSerialPort(path, baudRate)
+    }
+
+    override fun closeSerialPort(): Boolean {
+        return mSerialPortManager.closeSerialPort()
+    }
 
     /**
      * ● 作为主站去读取数据
@@ -100,22 +123,29 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * @author crowforkotlin
      */
     private fun repeatMasterActionOnRead(onReceive: suspend (ByteArray) -> Unit) {
-        val headByteSize = 3
+        val headByteSize = 7
         mSerialPortManager.onReadRepeatEnv {
             it?.let { bis ->
                 val headBytes = ByteArray(headByteSize)
                 var headReaded = 0
                 while (headReaded < headByteSize) {
                     val readed = bis.read(headBytes, headReaded, headByteSize - headReaded)
-                    if (readed == - 1) { break }
+                    if (readed == -1) {
+                        break
+                    }
                     headReaded += readed
                 }
-                val completeByteSize = headBytes.last().toInt() + 5
+                "headBytes : ${headBytes.toHexList()}".info()
+                val function = asciiHexToByte(headBytes[headByteSize - 4].toInt(), headBytes[headByteSize - 3].toInt()).toInt()
+                var lrcSize: Int = 2
+                val isFunctionError = (function and baseTenF) + 0x80 == function and 0xFF
+                if (isFunctionError) {
+                    lrcSize = 0
+                }
+                val completeByteSize = (asciiHexToByte(headBytes[headByteSize - 2].toInt(), headBytes[headByteSize - 1].toInt()).toInt() shl 1) + 9 + lrcSize
                 val completeBytes = ByteArray(completeByteSize)
-                var completeReaded = 3
-                completeBytes[0] = headBytes[0]
-                completeBytes[1] = headBytes[1]
-                completeBytes[2] = headBytes[2]
+                var completeReaded = 7
+                System.arraycopy(headBytes, 0, completeBytes, 0, completeReaded)
                 while (completeReaded < completeByteSize) {
                     val readed = bis.read(completeBytes, completeReaded, completeByteSize - completeReaded)
                     if (readed == -1) break
@@ -136,22 +166,24 @@ class KModbusRtu : KModbus(), ISerialPortExt {
         mSerialPortManager.onReadRepeatEnv {
             it?.let { bis ->
                 val slave = bis.read()
-                when(val function = getFunction(bis.read())) {
-                    WRITE_SINGLE_REGISTER, WRITE_SINGLE_COIL -> {
+                when (val function = getFunction(bis.read())) {
+                    KModbusFunction.WRITE_SINGLE_REGISTER, KModbusFunction.WRITE_SINGLE_COIL -> {
                         val bytes = bis.readBytes(6)
                         val address = toInt16(bytes)
                         val values = byteArrayOf(bytes[2], bytes[3])
                         val crc = toUInt16LittleEndian(bytes, 4)
                         onReceive(KModbusRtuSlaveResp(slave, function, address, null, values, crc))
                     }
-                    READ_COILS, READ_DISCRETE_INPUTS, READ_INPUT_REGISTERS, READ_HOLDING_REGISTERS -> {
+
+                    KModbusFunction.READ_COILS, KModbusFunction.READ_DISCRETE_INPUTS, KModbusFunction.READ_INPUT_REGISTERS, KModbusFunction.READ_HOLDING_REGISTERS -> {
                         val bytes = bis.readBytes(6)
                         val address = toInt16(bytes)
                         val count = toInt16(bytes, 2)
                         val crc = toUInt16LittleEndian(bytes, 4)
                         onReceive(KModbusRtuSlaveResp(slave, function, address, count, null, crc))
                     }
-                    WRITE_HOLDING_REGISTERS, WRITE_COILS -> {
+
+                    KModbusFunction.WRITE_HOLDING_REGISTERS, KModbusFunction.WRITE_COILS -> {
 
                     }
                 }
@@ -177,7 +209,9 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * ● 2024-01-10 20:07:29 周三 下午
      * @author crowforkotlin
      */
-    fun writeData(array: ByteArray) { mSerialPortManager.mWriteContext.launch { mSerialPortManager.writeBytes(array) } }
+    fun writeData(array: ByteArray) {
+        mSerialPortManager.mWriteContext.launch { mSerialPortManager.writeBytes(array) }
+    }
 
     /**
      * ● 启用接受数据的任务
@@ -190,19 +224,21 @@ class KModbusRtu : KModbus(), ISerialPortExt {
             "The read stream has not been opened yet. Maybe the serial port is not open?".error()
             return
         }
-        when(kModbusType) {
+        when (kModbusType) {
             KModbusType.MASTER -> {
                 repeatMasterActionOnRead { data ->
                     mWriteJob.cancel()
                     mMasterReadListener?.forEach { it.invoke(data) }
                 }
             }
+
             KModbusType.SLAVE -> {
                 repeatSlaveActionOnRead { data ->
                     mWriteJob.cancel()
                     mSlaveReadListener?.forEach { it.invoke(data) }
                 }
             }
+
             KModbusType.CUSTOM -> {
                 mWriteJob.cancel()
                 repeatCustomActionOnRead { data ->
@@ -230,13 +266,15 @@ class KModbusRtu : KModbus(), ISerialPortExt {
             while (true) {
                 if (duration < 1) duration = interval else delay(duration)
                 mSerialPortManager.writeBytes(mWriteListener?.onWrite() ?: continue)
-                mWriteJob = launch {
-                    delay(timeOut)
-                    duration = interval - timeOut
-                    timeOutFunc?.invoke()
-                    mWriteJob.cancel()
+                if (!mSkipAwait) {
+                    mWriteJob = launch {
+                        delay(timeOut)
+                        duration = interval - timeOut
+                        timeOutFunc?.invoke()
+                        mWriteJob.cancel()
+                    }
+                    mWriteJob.join()
                 }
-                mWriteJob.join()
             }
         }
     }
@@ -244,7 +282,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
 
     /**
      * ● 监听器
-     * 
+     *
      * ● 2024-01-10 20:03:16 周三 下午
      * @author crowforkotlin
      */
@@ -254,19 +292,41 @@ class KModbusRtu : KModbus(), ISerialPortExt {
         }
         mSlaveReadListener?.add(listener)
     }
+
     fun addOnMasterReceiveListener(listener: (ByteArray) -> Unit) {
         if (mMasterReadListener == null) {
             mMasterReadListener = arrayListOf()
         }
         mMasterReadListener?.add(listener)
     }
-    fun setOnDataWriteReadyListener (listener: IKModbusWriteData) { mWriteListener = listener }
-    fun setOnCustomReadRulesListener(listener: (BufferedInputStream) -> Unit) { mCustomReadListener = listener }
-    fun removeSlaveReceiveListener(listener: (KModbusRtuSlaveResp) -> Unit) { mSlaveReadListener?.remove(listener) }
-    fun removeMasterReceiveListener(listener: (ByteArray) -> Unit) { mMasterReadListener?.remove(listener) }
-    fun removeAllSlaveReceiveListener() { mSlaveReadListener?.clear() }
-    fun removeAllMasterReceiveListener() { mMasterReadListener?.clear() }
-    fun removeOnWriteDataReadyListener() { mWriteListener = null }
+
+    fun setOnDataWriteReadyListener(listener: IKModbusWriteData) {
+        mWriteListener = listener
+    }
+
+    fun setOnCustomReadRulesListener(listener: (BufferedInputStream) -> Unit) {
+        mCustomReadListener = listener
+    }
+
+    fun removeSlaveReceiveListener(listener: (KModbusRtuSlaveResp) -> Unit) {
+        mSlaveReadListener?.remove(listener)
+    }
+
+    fun removeMasterReceiveListener(listener: (ByteArray) -> Unit) {
+        mMasterReadListener?.remove(listener)
+    }
+
+    fun removeAllSlaveReceiveListener() {
+        mSlaveReadListener?.clear()
+    }
+
+    fun removeAllMasterReceiveListener() {
+        mMasterReadListener?.clear()
+    }
+
+    fun removeOnWriteDataReadyListener() {
+        mWriteListener = null
+    }
 
     /**
      * ● 构建KModbusRTU 主站输出数据
@@ -291,7 +351,16 @@ class KModbusRtu : KModbus(), ISerialPortExt {
         values: IntArray? = null,
         endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG,
     ): ByteArray {
-        return getArray(toCalculateCRC16(buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values)).toByteArray(), endian)
+        val bytes = BytesOutput()
+        val output = buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values).toByteArray()
+        val outputAscii = toAsciiHexBytes(output)
+        val pLRC = toAsciiHexByte(toCalculateLRC(output).toByte())
+        bytes.writeInt8(HEAD)
+        bytes.writeBytes(outputAscii, outputAscii.size)
+        bytes.writeInt8(pLRC.first)
+        bytes.writeInt8(pLRC.second)
+        bytes.writeBytes(END, END.size)
+        return getArray(bytes.toByteArray(), endian).also { it.toHexList().info() }
     }
 
     /**
@@ -305,10 +374,11 @@ class KModbusRtu : KModbus(), ISerialPortExt {
     fun resolveMasterResp(bytes: ByteArray, endian: ModbusEndian): KModbusRtuMasterResp? {
         return runCatching {
             val arrays = getArray(bytes, endian)
+            val firstByte = arrays[0].toInt()
             val slaveId = arrays[0].toInt()
-            val function= arrays[1].toInt() and 0xFF
+            val function = arrays[1].toInt() and 0xFF
             val isFunctionCodeError = (function and baseTenF) + 0x80 == function
-            if(isFunctionCodeError) {
+            if (isFunctionCodeError) {
                 val dataSize = arrays.size - 4
                 val valueBytes = ByteArray(dataSize)
                 System.arraycopy(arrays, 3, valueBytes, 0, dataSize)
@@ -316,7 +386,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
                     mSlaveID = slaveId,
                     mFunction = function,
                     mByteCount = dataSize,
-                    mValues =  valueBytes
+                    mValues = valueBytes
                 )
             } else {
                 val byteCount = arrays[2].toInt()
@@ -326,7 +396,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
                     mSlaveID = slaveId,
                     mFunction = function,
                     mByteCount = byteCount,
-                    mValues =  valueBytes
+                    mValues = valueBytes
                 )
             }
         }

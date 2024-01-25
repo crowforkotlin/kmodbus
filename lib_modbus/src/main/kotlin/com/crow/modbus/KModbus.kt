@@ -17,6 +17,7 @@ import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.CRC16
 import com.crow.modbus.tools.toReverseInt8
+import kotlin.experimental.and
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -138,13 +139,20 @@ open class KModbus protected constructor() {
      * @author crowforkotlin
      */
     fun toCalculateLRC(data: ByteArray): Int {
-        var iTmp = 0
+        var sum = 0
+        for (byte in data) {
+            sum += byte.toInt()
+        }
+        val invertedSum = sum.inv() + 1
+        return invertedSum and 0xFF
+        /*var iTmp = 0
         for (x in data) {
             iTmp += x.toInt()
         }
         iTmp %= 256
         iTmp = (iTmp.inv() + 1) and 0xFF // 对补码取模，确保结果在0-255范围内
-        return iTmp
+        return iTmp*/
+
     }
 
 

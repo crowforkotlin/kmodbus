@@ -55,6 +55,8 @@ android {
         excludes.add("META-INF/INDEX.LIST")
         excludes.add("META-INF/io.netty.versions.properties")
         excludes.add("META-INF/gradle/incremental.annotation.processors")
+        excludes.add("META-INF/LICENSE")
+        excludes.add("META-INF/DEPENDENCIES")
     }
 
     externalNativeBuild {
@@ -65,6 +67,8 @@ android {
 }
 
 dependencies {
+//    implementation(fileTree("dir" to "libs", "include" to "*.jar"))
+
     implementation(project(":lib_modbus"))
     implementation(libs.core.ktx)
     implementation(libs.appcompat)

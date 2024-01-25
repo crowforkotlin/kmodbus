@@ -22,6 +22,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -44,8 +45,8 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     internal var mBaudRate: Int = BaudRate.S_9600
     internal val mReadJob: Job = SupervisorJob()
     internal var  mWriteJob: Job = SupervisorJob()
-    internal val mReadContext = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mReadJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() })
-    internal val mWriteContext = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mWriteJob + CoroutineExceptionHandler { _, cause  -> cause.stackTraceToString().error() })
+    internal val mReadContext by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mReadJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() }) }
+    internal val mWriteContext by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mWriteJob + CoroutineExceptionHandler { _, cause  -> cause.stackTraceToString().error() }) }
     internal var mFileInputStream: BufferedInputStream? = null
     internal var mFileOutputStream: BufferedOutputStream? = null
     private var mSuccessListener = arrayListOf<ISerialPortSuccess>()
@@ -137,6 +138,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     override  fun closeSerialPort(): Boolean {
         "◉ 正在关闭串口".info()
         return runCatching {
+            if (mFileDescriptor != null) close()
             mFileDescriptor = null
             mFileInputStream?.close()
             mFileOutputStream?.close()
@@ -252,7 +254,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      * ● 2023-12-01 10:47:02 周五 上午
      * @author crowforkotlin
      */
-    open suspend fun writeBytes(bytes: ByteArray): Boolean {
+    open fun writeBytes(bytes: ByteArray): Boolean {
         mFileOutputStream?.let {
             it.write(bytes)
             it.flush()

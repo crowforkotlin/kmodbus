@@ -222,7 +222,7 @@ JNIEXPORT void JNICALL Java_com_crow_modbus_serialport_SerialPort_close(JNIEnv *
     jclass FileDescriptorClass = (*env)->FindClass(env, "java/io/FileDescriptor");
 
     jfieldID mFdID = (*env)->GetFieldID(env, SerialPortClass, "mFileDescriptor", "Ljava/io/FileDescriptor;");
-    jfieldID descriptorID = (*env)->GetFieldID(env, FileDescriptorClass, "fd", "I");
+    jfieldID descriptorID = (*env)->GetFieldID(env, FileDescriptorClass, "descriptor", "I");
 
     jobject mFd = (*env)->GetObjectField(env, thiz, mFdID);
     jint descriptor = (*env)->GetIntField(env, mFd, descriptorID);

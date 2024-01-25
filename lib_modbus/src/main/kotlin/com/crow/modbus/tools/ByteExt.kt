@@ -5,12 +5,12 @@ package com.crow.modbus.tools
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.lang.Float.floatToIntBits
-import java.nio.ByteBuffer
+import kotlin.experimental.and
 import kotlin.experimental.or
 
-internal val baseASCII_0 = Character.digit('0', 10)
-
-internal val baseASCII_A =  Character.digit('A', 10)
+internal const val ASCII_0 = '0'.code
+internal const val ASCII_A = 'A'.code
+internal const val ASCII_9 = '9'.code
 
 internal const val baseTenF = 0xF
 
@@ -227,9 +227,9 @@ fun toByteArrayLittleEndian(value: Any): ByteArray {
 }
 
 fun fromAsciiInt8(value: Int): Pair<Byte, Byte> {
-    val hight = (value shr 0x04)
-    val low = value and 0x0F
-    return toAsciiInt(hight).toByte() to toAsciiInt(low).toByte()
+    val hight = (value shr 0x04) + 0x30
+    val low = value and 0x0F + 0x30
+    return hight.toByte() to low.toByte()
 }
 
 /**
@@ -249,19 +249,29 @@ fun fromAsciiInt16(value: Int): ByteArray {
     )
 }
 
-/**
- * ● Int To AsciiInt
- *
- * ● 2024-01-16 17:20:07 周二 下午
- * @author crowforkotlin
- */
-fun toAsciiInt(valueHex: Int): Int { return  if (valueHex < 10) valueHex + baseASCII_0 else valueHex - 10 + baseASCII_A }
-
-fun toAsciiHexByte(value: Byte, stream: ByteArrayOutputStream) {
-    val high = ((value.toInt() shr 4) and 0x0F) + baseASCII_0
-    val low = (value.toInt() and 0x0F) + baseASCII_0
+fun toAsciiHexByte(valueByte: Byte, stream: ByteArrayOutputStream) {
+    val value = valueByte.toInt()
+    var high = ((value shr 4) and 0x0F) + ASCII_0
+    var low = (value and 0x0F) + ASCII_0
+    if (high > ASCII_9) high += (ASCII_A - ASCII_9 - 1)
+    if (low > ASCII_9) low += (ASCII_A - ASCII_9 - 1)
     stream.write(high)
     stream.write(low)
+}
+
+fun toAsciiHexByte(valueByte: Byte): Pair<Int, Int> {
+    val value = valueByte.toInt()
+    var high = ((value shr 4) and 0x0F) + ASCII_0
+    var low = (value and 0x0F) + ASCII_0
+    if (high > ASCII_9) high += (ASCII_A - ASCII_9 - 1)
+    if (low > ASCII_9) low += (ASCII_A - ASCII_9 - 1)
+    return high to low
+}
+
+fun asciiHexToByte(high: Int, low: Int): Byte {
+    val highNibble = if (high >= ASCII_A) high - ASCII_A + 10 else high - ASCII_0
+    val lowNibble = if (low >= ASCII_A) low - ASCII_A + 10 else low - ASCII_0
+    return ((highNibble shl 4) or lowNibble).toByte()
 }
 
 fun toAsciiHexBytes(data: ByteArray): ByteArray {
@@ -269,6 +279,7 @@ fun toAsciiHexBytes(data: ByteArray): ByteArray {
     for (byte in data) { toAsciiHexByte(byte, stream) }
     return stream.toByteArray()
 }
+
 
 fun fromFloat32(value: Float): ByteArray {
     val intBits = floatToIntBits(value)  // 将float转换为Int位表示
