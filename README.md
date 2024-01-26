@@ -66,8 +66,9 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-```kotlin If you want to write floating point data to a register
+```kotlin 
 fun main() {
+    // If you want to write floating point data to a register
     KModbusRtu().buildMasterOutput(
         function = KModbusFunction.WRITE_HOLDING_REGISTERS,
         slaveAddress = 1,
