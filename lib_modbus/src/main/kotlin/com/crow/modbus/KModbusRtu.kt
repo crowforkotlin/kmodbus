@@ -31,6 +31,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.util.concurrent.Executors
@@ -219,7 +220,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * @author crowforkotlin
      */
     @OptIn(InternalCoroutinesApi::class)
-    fun startRepeatWriteDataTask(interval: Long, timeOut: Long, timeOutFunc: (() -> Unit)? = null) {
+    fun startRepeatWriteDataTask(interval: Long, timeOut: Long, timeOutFunc: ((ByteArray) -> Unit)? = null) {
         if (mSerialPortManager.mFileOutputStream == null) {
             "The write stream has not been opened yet. Maybe the serial port is not open?".error()
             return
@@ -227,16 +228,19 @@ class KModbusRtu : KModbus(), ISerialPortExt {
         mSerialPortManager.mWriteJob.cancelChildren()
         mSerialPortManager.mWriteContext.launch {
             var duration = interval
-            while (true) {
+            while (isActive) {
                 if (duration < 1) duration = interval else delay(duration)
-                mSerialPortManager.writeBytes(mWriteListener?.onWrite() ?: continue)
-                mWriteJob = launch {
-                    delay(timeOut)
-                    duration = interval - timeOut
-                    timeOutFunc?.invoke()
-                    mWriteJob.cancel()
+                val arrays = mWriteListener?.onWrite() ?: continue
+                arrays.forEach { array ->
+                    mSerialPortManager.writeBytes(array)
+                    mWriteJob = launch {
+                        delay(timeOut)
+                        duration = interval - timeOut
+                        timeOutFunc?.invoke(array)
+                        mWriteJob.cancel()
+                    }
+                    mWriteJob.join()
                 }
-                mWriteJob.join()
             }
         }
     }
@@ -340,7 +344,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * ● 2024-01-22 18:38:54 周一 下午
      * @author crowforkotlin
      */
-    fun cleanAll(): Boolean {
+    fun cleanAllContext(): Boolean {
         return runCatching {
             mTaskJob.cancel()
             mWriteJob.cancel()

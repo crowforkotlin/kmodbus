@@ -9,26 +9,20 @@ import com.crow.modbus.tools.error
 import com.crow.modbus.tools.info
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.Executors
-import kotlin.coroutines.resume
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -177,7 +171,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     internal inline fun writeRepeat(interval: Long, crossinline onWrite: suspend () -> ByteArray?, crossinline complete: suspend (CoroutineScope) -> Unit) {
         mWriteJob.cancelChildren()
         mWriteContext.launch {
-            while (true) {
+            while (isActive) {
                 delay(interval)
                 writeBytes(onWrite() ?: continue)
                 complete(this)
@@ -241,7 +235,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
                 "The read stream has not been opened yet. Maybe the serial port is not open?".error()
                 return@launch
             }
-            while (true) {
+            while (isActive) {
                 runCatching { onRepat(mFileInputStream) }
                     .onFailure { cause -> cause.stackTraceToString().error() }
             }

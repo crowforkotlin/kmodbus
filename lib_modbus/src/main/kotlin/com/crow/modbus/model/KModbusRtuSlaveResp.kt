@@ -2,7 +2,6 @@ package com.crow.modbus.model
 
 import com.crow.modbus.tools.CRC16
 import com.crow.modbus.tools.fromInt16
-import com.crow.modbus.tools.info
 
 data class KModbusRtuSlaveResp(
     val mSlaveID: Int,
@@ -60,6 +59,6 @@ data class KModbusRtuSlaveResp(
         if (mValues != null) {
             System.arraycopy(mValues, 0, bytes, 4 + (count?.size ?: 0), mValues.size)
         }
-        return CRC16.compute(bytes).also { it.info() } == mCrc.also { it.info() }
+        return CRC16.compute(bytes) == mCrc
     }
 }

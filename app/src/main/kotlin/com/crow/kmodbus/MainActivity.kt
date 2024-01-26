@@ -15,40 +15,37 @@ import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.serialport.BaudRate
 import com.crow.modbus.tools.toHexList
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 
 class MainActivity : AppCompatActivity() {
 
-    private val mKModbusRTU = KModbusRtu()
+    private val mKModbusRtu = KModbusRtu()
     private val mKModbusTcp = KModbusTcp()
     private val mKModbusAscii = KModbusASCII()
 
-    private val IO = CoroutineScope(Dispatchers.IO)
-
     override fun onDestroy() {
         super.onDestroy()
-        "onDestroy".info()
-        mKModbusRTU.cleanAll()
+
+        // Clear all context to prevent any references. You can also continue to use the object after clearing it to continue your tasks later.
+        mKModbusRtu.cleanAllContext()
+        mKModbusAscii.cleanAllContext()
+        mKModbusTcp.cleanAllContext()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-//        initRTU(0, BaudRate.S_9600)
-        initAscii(0, BaudRate.S_9600)
-        initTcp("192.168.1.101", 502)
+        // You can open different serial ports by constructing multiple KModbusRtu, the same goes for TCP and ASCII
+        initRTU(ttySNumber = 0, BaudRate.S_9600)
+        initAscii(ttySNumber = 3, BaudRate.S_9600)
+        initTcp(host = "192.168.1.101", port = 502)
     }
 
     private fun initRTU(ttySNumber: Int, baudRate: Int) {
-        mKModbusRTU.apply {
+        mKModbusRtu.apply {
             openSerialPort(ttySNumber, baudRate)
-            addOnMasterReceiveListener {
-                val resp = mKModbusRTU.resolveMasterResp(it, ModbusEndian.ARRAY_BIG_BYTE_BIG) ?: return@addOnMasterReceiveListener
-                resp.info()
-            }
-            setOnDataWriteReadyListener { buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1) }
+            addOnMasterReceiveListener { arrays -> "RTU : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
+            setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
             startRepeatReceiveDataTask(KModbusType.MASTER)
             startRepeatWriteDataTask(1000L, 1000L) { "RTU TIME OUT!".info() }
         }
@@ -57,8 +54,8 @@ class MainActivity : AppCompatActivity() {
     private fun initTcp(host: String, port: Int) {
         mKModbusTcp.apply {
             startTcp(host, port, true) { ins, ops ->
-                addOnMasterReceiveListener {  arrays -> resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG).info() }
-                setOnDataWriteReadyListener { buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1) }
+                addOnMasterReceiveListener {  arrays -> "TCP : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
+                setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
                 startRepeatReceiveDataTask(ins, KModbusType.MASTER)
                 startRepeatWriteDataTask(ops, 1000L, 1000L) { "TCP TIME OUT!".info() }
             }
@@ -67,12 +64,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun initAscii(ttySNumber: Int, baudRate: Int) {
         mKModbusAscii.apply {
-            mSkipAwait = true
             openSerialPort(ttySNumber, baudRate)
-            addOnMasterReceiveListener {
-                "ascii : ${it.toHexList()}".info()
-            }
-            setOnDataWriteReadyListener { buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1) }
+            addOnMasterReceiveListener { arrays -> "ASCII : ${arrays.toHexList()}".info() }
+            setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
             startRepeatReceiveDataTask(KModbusType.MASTER)
             startRepeatWriteDataTask(1000L, 1000L) { "ASCII TIME OUT!".info() }
         }

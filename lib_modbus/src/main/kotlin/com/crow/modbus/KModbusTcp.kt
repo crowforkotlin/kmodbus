@@ -10,7 +10,6 @@ import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
-import com.crow.modbus.tools.toReverseInt8
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
@@ -81,7 +81,7 @@ class KModbusTcp : KModbus() {
         mInputJob.cancelChildren()
         mInputScope.launch {
             val byteReadLen = 6
-            while (true) {
+            while (isActive) {
                 runCatching {
                     var byteReaded = 0
                     val bytesHead = ByteArray(byteReadLen)
@@ -116,21 +116,24 @@ class KModbusTcp : KModbus() {
      * ● 2024-01-10 18:33:35 周三 下午
      * @author crowforkotlin
      */
-    fun startRepeatWriteDataTask(ops: OutputStream, interval: Long, timeOut: Long, timeOutFunc: (() -> Unit)? = null) {
+    fun startRepeatWriteDataTask(ops: OutputStream, interval: Long, timeOut: Long, timeOutFunc: ((ByteArray) -> Unit)? = null) {
         mOutputJob.cancelChildren()
         mOutputScope.launch {
             var duration = interval
-            while (true) {
+            while (isActive) {
                 runCatching {
                     if (duration < 1) duration = interval else delay(duration)
-                    ops.write(mWriteListener?.onWrite() ?: return@runCatching)
-                    mWriteJob = launch {
-                        delay(timeOut)
-                        duration = interval - timeOut
-                        timeOutFunc?.invoke()
-                        mWriteJob.cancel()
+                    val arrays = mWriteListener?.onWrite() ?: return@runCatching
+                    arrays.forEach { array ->
+                        ops.write(array)
+                        mWriteJob = launch {
+                            delay(timeOut)
+                            duration = interval - timeOut
+                            timeOutFunc?.invoke(array)
+                            mWriteJob.cancel()
+                        }
+                        mWriteJob.join()
                     }
-                    mWriteJob.join()
                 }
                     .onFailure { cause -> cause.stackTraceToString().error() }
             }
@@ -206,7 +209,7 @@ class KModbusTcp : KModbus() {
      * ● 2023-12-05 18:49:53 周二 下午
      * @author crowforkotlin
      */
-    fun cancelAll() {
+    fun cleanAllContext() {
         mInputJob.cancelChildren()
         mOutputJob.cancelChildren()
         mIOJob.cancelChildren()
@@ -215,7 +218,7 @@ class KModbusTcp : KModbus() {
 
     fun buildMasterOutput(
         function: KModbusFunction,
-        slave: Int,
+        slaveAddress: Int,
         startAddress: Int,
         count: Int,
         value: Int? = null,
@@ -223,13 +226,13 @@ class KModbusTcp : KModbus() {
         transactionId: Int = mTransactionId,
         endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG,
     ): ByteArray {
-        val pdu = buildMasterRequestOutput(slave, function, startAddress, count, value, values, isTcp = true)
+        val pdu = buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values, isTcp = true)
         val size = pdu.size()
         val mbap = BytesOutput()
         mbap.writeInt16(transactionId)
         mbap.writeInt16(mProtocol)
         mbap.writeInt16(size + 1)
-        mbap.writeInt8(slave)
+        mbap.writeInt8(slaveAddress)
         mbap.write(pdu.toByteArray())
         mTransactionId++
         return getArray(mbap.toByteArray(), endian)

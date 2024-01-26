@@ -1,13 +1,23 @@
 package com.crow.kmodbus
 
+import com.crow.modbus.KModbusRtu
+import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.tools.asciiHexToByte
 import com.crow.modbus.tools.toAsciiHexByte
 import com.crow.modbus.tools.toAsciiHexBytes
 import com.crow.modbus.tools.toHexList
+import com.crow.modbus.tools.toIntArray
 import kotlin.experimental.and
 
 @OptIn(ExperimentalStdlibApi::class)
 suspend fun main() {
+    KModbusRtu().buildMasterOutput(
+        function = KModbusFunction.WRITE_HOLDING_REGISTERS,
+        slaveAddress = 1,
+        startAddress = 1,
+        count = 2,
+        values = 123.789f.toIntArray()
+    )
     println(toAsciiHexBytes(byteArrayOf(0x01, 0x03, 0x00, 0x00, 0x00, 0x01)).toHexList())
     val byteValue= byteArrayOf(0x01.toByte())
     println(toAsciiHexBytes(byteValue).toHexList())
