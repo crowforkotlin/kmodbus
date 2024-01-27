@@ -58,12 +58,6 @@ android {
         excludes.add("META-INF/LICENSE")
         excludes.add("META-INF/DEPENDENCIES")
     }
-
-    externalNativeBuild {
-        cmake {
-            path = file("CMakeLists.txt")
-        }
-    }
 }
 
 dependencies {
