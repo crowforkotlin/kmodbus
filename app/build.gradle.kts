@@ -58,12 +58,6 @@ android {
         excludes.add("META-INF/LICENSE")
         excludes.add("META-INF/DEPENDENCIES")
     }
-
-    externalNativeBuild {
-        cmake {
-            path = file("CMakeLists.txt")
-        }
-    }
 }
 
 dependencies {
@@ -75,6 +69,4 @@ dependencies {
     implementation(libs.material)
     implementation(libs.constraintlayout)
     implementation(libs.gson)
-    implementation(ktor.client.core)
-    implementation(ktor.socket)
 }

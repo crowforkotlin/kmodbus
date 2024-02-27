@@ -7,7 +7,7 @@ package com.crow.kmodbus
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.crow.modbus.KModbusASCII
+import com.crow.modbus.KModbusAscii
 import com.crow.modbus.KModbusRtu
 import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
 import com.crow.modbus.model.KModbusType
@@ -20,7 +20,7 @@ class MainActivity : AppCompatActivity() {
 
     private val mKModbusRtu = KModbusRtu()
     private val mKModbusTcp = KModbusTcp()
-    private val mKModbusAscii = KModbusASCII()
+    private val mKModbusAscii = KModbusAscii()
 
     override fun onDestroy() {
         super.onDestroy()

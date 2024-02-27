@@ -40,7 +40,7 @@ import java.util.concurrent.Executors
  * ● 2024/1/23 18:42
  * @author crowforkotlin
  */
-class KModbusASCII : KModbus(), ISerialPortExt {
+class KModbusAscii : KModbus(), ISerialPortExt {
 
     companion object {
         private val HEAD = 0x3A

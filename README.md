@@ -8,6 +8,14 @@
 - **Built-in polling and reconnection processing mechanism**
 
 ```kotlin
+repositories { mavenCentral() }
+
+implementation("com.kotlincrow.android.component:KModbus:1.0")
+
+// 此外你还需要在你的项目引入libSerialPort.so,可在Release找到
+```
+
+```kotlin
 class MainActivity : AppCompatActivity() {
 
     private val mKModbusRtu = KModbusRtu()
