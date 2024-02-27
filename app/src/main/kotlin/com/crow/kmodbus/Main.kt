@@ -11,12 +11,14 @@ import kotlin.experimental.and
 
 @OptIn(ExperimentalStdlibApi::class)
 suspend fun main() {
-    KModbusRtu().buildMasterOutput(
-        function = KModbusFunction.WRITE_HOLDING_REGISTERS,
-        slaveAddress = 1,
-        startAddress = 1,
-        count = 2,
-        values = 123.789f.toIntArray()
+    println(
+        KModbusRtu().buildMasterOutput(
+            function = KModbusFunction.WRITE_SINGLE_REGISTER,
+            slaveAddress = 6,
+            startAddress = 0,
+            count = 2,
+            value = 0
+        ).toHexList()
     )
     println(toAsciiHexBytes(byteArrayOf(0x01, 0x03, 0x00, 0x00, 0x00, 0x01)).toHexList())
     val byteValue= byteArrayOf(0x01.toByte())

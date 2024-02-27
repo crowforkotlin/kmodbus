@@ -9,12 +9,12 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.crow.modbus.KModbusASCII
 import com.crow.modbus.KModbusRtu
-import com.crow.modbus.KModbusTcp
 import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.serialport.BaudRate
 import com.crow.modbus.tools.toHexList
+import com.listen.x3player.kt.modbus.KModbusTcp
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         // Clear all context to prevent any references. You can also continue to use the object after clearing it to continue your tasks later.
         mKModbusRtu.cleanAllContext()
         mKModbusAscii.cleanAllContext()
-        mKModbusTcp.cleanAllContext()
+        mKModbusTcp.cancelAll()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initTcp(host: String, port: Int) {
-        mKModbusTcp.apply {
+        mKModbusTcp.apply{
             startTcp(host, port, true) { ins, ops ->
                 addOnMasterReceiveListener {  arrays -> "TCP : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
                 setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }

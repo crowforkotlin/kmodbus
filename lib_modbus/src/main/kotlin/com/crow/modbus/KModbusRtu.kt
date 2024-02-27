@@ -219,7 +219,6 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * ● 2024-01-10 18:33:35 周三 下午
      * @author crowforkotlin
      */
-    @OptIn(InternalCoroutinesApi::class)
     fun startRepeatWriteDataTask(interval: Long, timeOut: Long, timeOutFunc: ((ByteArray) -> Unit)? = null) {
         if (mSerialPortManager.mFileOutputStream == null) {
             "The write stream has not been opened yet. Maybe the serial port is not open?".error()

@@ -370,3 +370,11 @@ fun ByteArray.toIntData(index: Int, intBitLength: Int = 2, isUnsigned: Boolean =
  * @author crowforkotlin
  */
 fun Float.toIntArray() = with(fromFloat32(this)) { intArrayOf(toInt16(this, 0), toInt16(this, 2)) }
+
+
+fun ByteArray.toStringGB2312(index: Int, intBitLength: Int) : String {
+    return runCatching {
+        String(copyOfRange(index, index + (intBitLength shl 1)), charset = charset("GB2312")) }
+        .onFailure { it.stackTraceToString().error()  }
+        .getOrElse { "0" }
+}

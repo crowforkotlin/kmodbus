@@ -1,7 +1,8 @@
 @file:Suppress("SpellCheckingInspection", "unused")
 
-package com.crow.modbus
+package com.listen.x3player.kt.modbus
 
+import com.crow.modbus.KModbus
 import com.crow.modbus.interfaces.IKModbusWriteData
 import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.model.KModbusTcpMasterResp
@@ -12,10 +13,10 @@ import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
+import java.net.SocketException
 import java.util.concurrent.Executors
 
 /**
@@ -60,16 +62,19 @@ class KModbusTcp : KModbus() {
     private var mTransactionId: Int = 0
     private val mProtocol: Int = 0
 
+    private var mTcpScopeJob: Job? = null
     private var mHost: String? = null
     private var mPort: Int? = null
-    private var mIOJob: Job = SupervisorJob()
+    private var mRetryDuration: Long = 2000L
+    private var mSuccess: ((ins: InputStream, ops: OutputStream) -> Unit)? = null
+    private var mTcpJob: Job = SupervisorJob()
     private var mOutputJob: Job = SupervisorJob()
     private var mInputJob: Job = SupervisorJob()
     private var mWriteJob: Job = Job()
     private var mServerSocket: Socket? = null
-    private val mIOScope by lazy { CoroutineScope(Dispatchers.IO + mIOJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() }) }
-    private val mOutputScope by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mOutputJob + CoroutineExceptionHandler { _, throwable -> throwable.stackTraceToString().error() }) }
-    private val mInputScope by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mInputJob + CoroutineExceptionHandler { _, throwable -> throwable.stackTraceToString().error() }) }
+    private val mTcpScope by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mTcpJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() }) }
+    private val mOutputScope by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mOutputJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() }) }
+    private val mInputScope by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mInputJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() }) }
 
     /**
      * ● TCP 循环读取
@@ -105,7 +110,13 @@ class KModbusTcp : KModbus() {
                         onReceive(buffer)
                     }
                 }
-                    .onFailure { cause -> cause.stackTraceToString().error() }
+                    .onFailure { cause ->
+                        if (cause is SocketException && (cause.message == "Connection reset" || cause.message == "Software caused connection abort" || cause.message == "Broken pipe")) {
+                            cancel()
+                            startTcp(mHost ?: return@onFailure, mPort ?: return@onFailure, duration = mRetryDuration, onSuccess = mSuccess ?: return@onFailure)
+                        }
+                        "repeatMasterActionOnRead : ${cause.stackTraceToString()}".error()
+                    }
             }
         }
     }
@@ -135,7 +146,13 @@ class KModbusTcp : KModbus() {
                         mWriteJob.join()
                     }
                 }
-                    .onFailure { cause -> cause.stackTraceToString().error() }
+                    .onFailure { cause ->
+                        if (cause is SocketException && (cause.message == "Connection reset" || cause.message == "Software caused connection abort" || cause.message == "Broken pipe")) {
+                            cancel()
+                            startTcp(mHost ?: return@onFailure, mPort ?: return@onFailure, duration = mRetryDuration, onSuccess = mSuccess ?: return@onFailure)
+                        }
+                        "startRepeatWriteDataTask : ${cause.stackTraceToString()}".error()
+                    }
             }
         }
     }
@@ -184,10 +201,12 @@ class KModbusTcp : KModbus() {
      * ● 2024-01-23 17:30:56 周二 下午
      * @author crowforkotlin
      */
-    fun startTcp(host: String, port: Int, retry: Boolean = true, duration: Long = 2000L, onSuccess: ((ins: InputStream, ops: OutputStream) -> Unit)? = null) {
+    fun startTcp(host: String, port: Int, retry: Boolean = true, duration: Long = mRetryDuration, onSuccess: ((ins: InputStream, ops: OutputStream) -> Unit)? = null) {
         mHost = host
         mPort = port
-        mIOScope.launch {
+        mRetryDuration = duration
+        mSuccess = onSuccess
+        tcpScope {
             runCatching {
                 mServerSocket = Socket(host, port)
                 mServerSocket ?: kotlin.error("Socket connection exception!")
@@ -199,7 +218,9 @@ class KModbusTcp : KModbus() {
                         startTcp(host, port, true, duration, onSuccess)
                     }
                 }
-                .onSuccess { socket -> onSuccess?.invoke(socket.getInputStream(), socket.getOutputStream()) }
+                .onSuccess { socket ->
+                    onSuccess?.invoke(socket.getInputStream(), socket.getOutputStream())
+                }
         }
     }
 
@@ -209,10 +230,10 @@ class KModbusTcp : KModbus() {
      * ● 2023-12-05 18:49:53 周二 下午
      * @author crowforkotlin
      */
-    fun cleanAllContext() {
+    fun cancelAll() {
         mInputJob.cancelChildren()
         mOutputJob.cancelChildren()
-        mIOJob.cancelChildren()
+        mTcpJob.cancelChildren()
         mServerSocket?.close()
     }
 
@@ -270,6 +291,10 @@ class KModbusTcp : KModbus() {
             .getOrElse { null }
     }
 
-    fun getOps() = runCatching { mServerSocket?.getOutputStream() }.getOrElse { null }
-    fun getIns() = runCatching { mServerSocket?.getInputStream() }.getOrElse { null }
+    private fun getOps() = runCatching { mServerSocket?.getOutputStream() }.getOrElse { null }
+    private fun getIns() = runCatching { mServerSocket?.getInputStream() }.getOrElse { null }
+    fun tcpScope(scope: suspend () -> Unit) {
+        mTcpJob.cancelChildren()
+        mTcpScope.launch { scope() }
+    }
 }
