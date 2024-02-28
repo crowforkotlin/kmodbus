@@ -15,6 +15,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
         setProperty("archivesBaseName", "KModbus-${properties["VERSION_NAME"]}")
+        ndk {
+            abiFilters += listOf("armeabi-v7a")
+        }
     }
     buildTypes {
         release {
@@ -30,6 +33,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions { jvmTarget = "1.8" }
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDir("libs")
+        }
+    }
 }
 
 mavenPublishing {

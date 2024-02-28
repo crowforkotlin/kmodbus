@@ -5,7 +5,6 @@ package com.crow.modbus.tools
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.lang.Float.floatToIntBits
-import kotlin.experimental.and
 import kotlin.experimental.or
 
 internal const val ASCII_0 = '0'.code
@@ -350,9 +349,9 @@ fun ByteArray.toFloatData(index: Int, precision: Int): String {
         .getOrElse { "0.0" }
 }
 
-fun ByteArray.toIntData(index: Int, intBitLength: Int = 2, isUnsigned: Boolean = false): String {
+fun ByteArray.toIntData(index: Int, length: Int = 2, isUnsigned: Boolean = false): String {
     return runCatching {
-        when (intBitLength) {
+        when (length) {
             1 -> this[index].toInt().toString()
             2 -> (if (isUnsigned) toUInt16(this, index) else toInt16(this, index)).toString()
             4 -> (if (isUnsigned) toUInt32(this, index) else toInt32(this, index)).toString()
@@ -372,9 +371,9 @@ fun ByteArray.toIntData(index: Int, intBitLength: Int = 2, isUnsigned: Boolean =
 fun Float.toIntArray() = with(fromFloat32(this)) { intArrayOf(toInt16(this, 0), toInt16(this, 2)) }
 
 
-fun ByteArray.toStringGB2312(index: Int, intBitLength: Int) : String {
+fun ByteArray.toStringGB2312(index: Int, length: Int) : String {
     return runCatching {
-        String(copyOfRange(index, index + (intBitLength shl 1)), charset = charset("GB2312")) }
+        String(copyOfRange(index, index + (length shl 1)), charset = charset("GB2312")) }
         .onFailure { it.stackTraceToString().error()  }
         .getOrElse { "0" }
 }

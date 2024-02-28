@@ -111,7 +111,7 @@ class KModbusTcp : KModbus() {
                     }
                 }
                     .onFailure { cause ->
-                        if (cause is SocketException && (cause.message == "Connection reset" || cause.message == "Software caused connection abort" || cause.message == "Broken pipe")) {
+                        if (cause is SocketException) {
                             cancel()
                             startTcp(mHost ?: return@onFailure, mPort ?: return@onFailure, duration = mRetryDuration, onSuccess = mSuccess ?: return@onFailure)
                         }
@@ -147,7 +147,7 @@ class KModbusTcp : KModbus() {
                     }
                 }
                     .onFailure { cause ->
-                        if (cause is SocketException && (cause.message == "Connection reset" || cause.message == "Software caused connection abort" || cause.message == "Broken pipe")) {
+                        if (cause is SocketException) {
                             cancel()
                             startTcp(mHost ?: return@onFailure, mPort ?: return@onFailure, duration = mRetryDuration, onSuccess = mSuccess ?: return@onFailure)
                         }
