@@ -9,12 +9,15 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.crow.modbus.KModbusAscii
 import com.crow.modbus.KModbusRtu
+import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.serialport.BaudRate
+import com.crow.modbus.serialport.SerialPortParityFunction
 import com.crow.modbus.tools.toHexList
 import com.listen.x3player.kt.modbus.KModbusTcp
+import io.ktor.http.HttpHeaders.If
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,8 +29,8 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
 
         // Clear all context to prevent any references. You can also continue to use the object after clearing it to continue your tasks later.
-        mKModbusRtu.cleanAllContext()
-        mKModbusAscii.cleanAllContext()
+        mKModbusRtu.cancelAll()
+        mKModbusAscii.cancelAll()
         mKModbusTcp.cancelAll()
     }
 
@@ -43,11 +46,31 @@ class MainActivity : AppCompatActivity() {
 
     private fun initRTU(ttySNumber: Int, baudRate: Int) {
         mKModbusRtu.apply {
-            openSerialPort(ttySNumber, baudRate)
+            // The openSerialPort function has multiple overloads. You can customize the incoming control, serial port, baud rate, check mode, stop bit, and data bit.
+            openSerialPort(ttysNumber = ttySNumber, baudRate = baudRate, parity = SerialPortParityFunction.NONE, stopBit = 1, dataBit = 8)
+
+            // Set the listener for data returned from the slave station in master mode
             addOnMasterReceiveListener { arrays -> "RTU : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
+
+            // If you want to poll and write multiple data, you can add the data to the queue in the same way as listOf.
             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
-            startRepeatReceiveDataTask(KModbusType.MASTER)
-            startRepeatWriteDataTask(1000L, 1000L) { "RTU TIME OUT!".info() }
+
+            // Set the reading behavior to: master mode. If it is slave mode, it means that the data sent by the master station will be read.
+            startRepeatReceiveDataTask(kModbusBehaviorType = KModbusType.MASTER)
+
+            // Enable polling tasks for writing data, with built-in timeout mechanism
+            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "RTU TIME OUT!".info() }
+
+            // If you do not enable polling writing, you can also manually control the writing of data yourself.
+           /*
+            mKModbusRtu.writeData(buildMasterOutput(
+                function = KModbusFunction.WRITE_SINGLE_REGISTER,
+                slaveAddress = 6,
+                startAddress = 0,
+                count = 2,
+                value = 0
+            ))
+            */
         }
     }
 
@@ -57,7 +80,7 @@ class MainActivity : AppCompatActivity() {
                 addOnMasterReceiveListener {  arrays -> "TCP : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
                 setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
                 startRepeatReceiveDataTask(ins, KModbusType.MASTER)
-                startRepeatWriteDataTask(ops, 1000L, 1000L) { "TCP TIME OUT!".info() }
+                startRepeatWriteDataTask(ops, interval = 1000L, timeOut = 1000L) { "TCP TIME OUT!".info() }
             }
         }
     }
@@ -68,7 +91,7 @@ class MainActivity : AppCompatActivity() {
             addOnMasterReceiveListener { arrays -> "ASCII : ${arrays.toHexList()}".info() }
             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
             startRepeatReceiveDataTask(KModbusType.MASTER)
-            startRepeatWriteDataTask(1000L, 1000L) { "ASCII TIME OUT!".info() }
+            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "ASCII TIME OUT!".info() }
         }
     }
 }

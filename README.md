@@ -12,7 +12,7 @@ repositories { mavenCentral() }
 
 implementation("com.kotlincrow.android.component:KModbus:1.0")
 
-// 此外你还需要在你的项目引入libSerialPort.so,可在Release找到
+// In addition, you also need to introduce lib Serial Port.so into your project, which can be found in Release
 ```
 
 ```kotlin
@@ -20,15 +20,15 @@ class MainActivity : AppCompatActivity() {
 
     private val mKModbusRtu = KModbusRtu()
     private val mKModbusTcp = KModbusTcp()
-    private val mKModbusAscii = KModbusASCII()
+    private val mKModbusAscii = KModbusAscii()
 
     override fun onDestroy() {
         super.onDestroy()
 
         // Clear all context to prevent any references. You can also continue to use the object after clearing it to continue your tasks later.
-        mKModbusRtu.cleanAllContext()
-        mKModbusAscii.cleanAllContext()
-        mKModbusTcp.cleanAllContext()
+        mKModbusRtu.cancelAll()
+        mKModbusAscii.cancelAll()
+        mKModbusTcp.cancelAll()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,21 +43,41 @@ class MainActivity : AppCompatActivity() {
 
     private fun initRTU(ttySNumber: Int, baudRate: Int) {
         mKModbusRtu.apply {
-            openSerialPort(ttySNumber, baudRate)
+            // The openSerialPort function has multiple overloads. You can customize the incoming control, serial port, baud rate, check mode, stop bit, and data bit.
+            openSerialPort(ttysNumber = ttySNumber, baudRate = baudRate, parity = SerialPortParityFunction.NONE, stopBit = 1, dataBit = 8)
+
+            // Set the listener for data returned from the slave station in master mode
             addOnMasterReceiveListener { arrays -> "RTU : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
+
+            // If you want to poll and write multiple data, you can add the data to the queue in the same way as listOf.
             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
-            startRepeatReceiveDataTask(KModbusType.MASTER)
-            startRepeatWriteDataTask(1000L, 1000L) { "RTU TIME OUT!".info() }
+
+            // Set the reading behavior to: master mode. If it is slave mode, it means that the data sent by the master station will be read.
+            startRepeatReceiveDataTask(kModbusBehaviorType = KModbusType.MASTER)
+
+            // Enable polling tasks for writing data, with built-in timeout mechanism
+            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "RTU TIME OUT!".info() }
+
+            // If you do not enable polling writing, you can also manually control the writing of data yourself.
+            /* 
+             mKModbusRtu.writeData(buildMasterOutput(
+                 function = KModbusFunction.WRITE_SINGLE_REGISTER,
+                 slaveAddress = 6,
+                 startAddress = 0,
+                 count = 2,
+                 value = 0
+             ))
+             */
         }
     }
 
     private fun initTcp(host: String, port: Int) {
-        mKModbusTcp.apply {
+        mKModbusTcp.apply{
             startTcp(host, port, true) { ins, ops ->
                 addOnMasterReceiveListener {  arrays -> "TCP : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
                 setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
                 startRepeatReceiveDataTask(ins, KModbusType.MASTER)
-                startRepeatWriteDataTask(ops, 1000L, 1000L) { "TCP TIME OUT!".info() }
+                startRepeatWriteDataTask(ops, interval = 1000L, timeOut = 1000L) { "TCP TIME OUT!".info() }
             }
         }
     }
@@ -68,7 +88,7 @@ class MainActivity : AppCompatActivity() {
             addOnMasterReceiveListener { arrays -> "ASCII : ${arrays.toHexList()}".info() }
             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
             startRepeatReceiveDataTask(KModbusType.MASTER)
-            startRepeatWriteDataTask(1000L, 1000L) { "ASCII TIME OUT!".info() }
+            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "ASCII TIME OUT!".info() }
         }
     }
 }

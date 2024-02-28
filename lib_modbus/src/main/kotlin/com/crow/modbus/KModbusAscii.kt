@@ -1,4 +1,4 @@
-@file:Suppress("SpellCheckingInspection")
+@file:Suppress("SpellCheckingInspection", "unused")
 
 package com.crow.modbus
 
@@ -11,6 +11,7 @@ import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.model.getFunction
 import com.crow.modbus.serialport.SerialPortManager
+import com.crow.modbus.serialport.SerialPortParityFunction
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.asciiHexToByte
 import com.crow.modbus.tools.baseTenF
@@ -43,7 +44,7 @@ import java.util.concurrent.Executors
 class KModbusAscii : KModbus(), ISerialPortExt {
 
     companion object {
-        private val HEAD = 0x3A
+        private const val HEAD = 0x3A
         private val END = byteArrayOf(0x0d, 0x0A)
     }
 
@@ -96,22 +97,22 @@ class KModbusAscii : KModbus(), ISerialPortExt {
      */
     var mSkipAwait: Boolean = false
 
-    override fun reOpenSerialPort(ttySNumber: Int, baudRate: Int) {
+    override fun reOpenSerialPort(ttySNumber: Int, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
         closeSerialPort()
-        openSerialPort(ttySNumber, baudRate)
+        openSerialPort(ttySNumber, baudRate, parity,stopBit, dataBit)
     }
 
-    override fun reOpenSerialPort(path: String, baudRate: Int) {
+    override fun reOpenSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
         closeSerialPort()
-        openSerialPort(path, baudRate)
+        openSerialPort(path, baudRate, parity,stopBit, dataBit)
     }
 
-    override fun openSerialPort(ttysNumber: Int, baudRate: Int) {
-        mSerialPortManager.openSerialPort(ttysNumber, baudRate)
+    override fun openSerialPort(ttysNumber: Int, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
+        mSerialPortManager.openSerialPort(ttysNumber, baudRate, parity,stopBit, dataBit)
     }
 
-    override fun openSerialPort(path: String, baudRate: Int) {
-        mSerialPortManager.openSerialPort(path, baudRate)
+    override fun openSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
+        mSerialPortManager.openSerialPort(path, baudRate, parity,stopBit, dataBit)
     }
 
     override fun closeSerialPort(): Boolean {
@@ -432,7 +433,7 @@ class KModbusAscii : KModbus(), ISerialPortExt {
      * ● 2024-01-22 18:38:54 周一 下午
      * @author crowforkotlin
      */
-    fun cleanAllContext(): Boolean {
+    fun cancelAll(): Boolean {
         return runCatching {
             mTaskJob.cancel()
             mWriteJob.cancel()

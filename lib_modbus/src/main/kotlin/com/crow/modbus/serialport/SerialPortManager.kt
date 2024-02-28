@@ -80,7 +80,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      *
      * ● 2023-09-23 16:02:30 周六 下午
      */
-    override fun openSerialPort(path: String, baudRate: Int) {
+    override fun openSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
 
         val device = File(path)
         if (mFileInputStream != null && mFileOutputStream != null) {
@@ -99,14 +99,14 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
         }
 
         mBaudRate = baudRate
-        mFileDescriptor = open(device.absolutePath, baudRate, SerialPortParityFunction.NONE, 1, 8)
+        mFileDescriptor = open(device.absolutePath, baudRate, parity, stopBit, dataBit)
         mFileInputStream = BufferedInputStream(FileInputStream(mFileDescriptor))
         mFileOutputStream = BufferedOutputStream(FileOutputStream(mFileDescriptor))
         mSuccessListener.forEach { it.onSuccess(device) }
         "串口已经打开 状态 ：${mFileDescriptor?.valid()}".info()
     }
-    override fun openSerialPort(ttysNumber: Int, baudRate: Int) {
-        openSerialPort("/dev/ttyS$ttysNumber", baudRate)
+    override fun openSerialPort(ttysNumber: Int, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
+        openSerialPort("/dev/ttyS$ttysNumber", baudRate, parity,stopBit, dataBit)
     }
 
     /**
@@ -115,13 +115,13 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      * ● 2024-01-03 18:19:08 周三 下午
      * @author crowforkotlin
      */
-    override fun reOpenSerialPort(com: Int, baudRate: Int) {
+    override fun reOpenSerialPort(com: Int, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
         closeSerialPort()
-        openSerialPort("/dev/ttyS${com}", baudRate)
+        openSerialPort("/dev/ttyS${com}", baudRate, parity,stopBit, dataBit)
     }
-    override fun reOpenSerialPort(path: String, baudRate: Int) {
+    override fun reOpenSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
         closeSerialPort()
-        openSerialPort(path, baudRate)
+        openSerialPort(path, baudRate, parity,stopBit, dataBit)
     }
 
     /**

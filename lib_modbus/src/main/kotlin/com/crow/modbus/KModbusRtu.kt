@@ -19,13 +19,13 @@ import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.model.getFunction
 import com.crow.modbus.serialport.SerialPortManager
+import com.crow.modbus.serialport.SerialPortParityFunction
 import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
 import com.crow.modbus.tools.readBytes
 import com.crow.modbus.tools.toInt16
 import com.crow.modbus.tools.toUInt16LittleEndian
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -82,16 +82,16 @@ class KModbusRtu : KModbus(), ISerialPortExt {
     private val mTaskJob by lazy { SupervisorJob() }
     private val mTaskScope by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mTaskJob) }
 
-    override fun reOpenSerialPort(ttySNumber: Int, baudRate: Int) {
+    override fun reOpenSerialPort(ttySNumber: Int, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
         closeSerialPort()
-        openSerialPort(ttySNumber, baudRate)
+        openSerialPort(ttySNumber, baudRate, parity,stopBit, dataBit)
     }
-    override fun reOpenSerialPort(path: String, baudRate: Int) {
+    override fun reOpenSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
         closeSerialPort()
-        openSerialPort(path, baudRate)
+        openSerialPort(path, baudRate, parity,stopBit, dataBit)
     }
-    override fun openSerialPort(ttysNumber: Int, baudRate: Int) { mSerialPortManager.openSerialPort(ttysNumber, baudRate) }
-    override fun openSerialPort(path: String, baudRate: Int) { mSerialPortManager.openSerialPort(path, baudRate) }
+    override fun openSerialPort(ttysNumber: Int, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) { mSerialPortManager.openSerialPort(ttysNumber, baudRate, parity,stopBit, dataBit) }
+    override fun openSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) { mSerialPortManager.openSerialPort(path, baudRate, parity,stopBit, dataBit) }
     override fun closeSerialPort(): Boolean { return mSerialPortManager.closeSerialPort() }
 
     /**
@@ -186,12 +186,12 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * ● 2024-01-10 18:23:52 周三 下午
      * @author crowforkotlin
      */
-    fun startRepeatReceiveDataTask(kModbusType: KModbusType) {
+    fun startRepeatReceiveDataTask(kModbusBehaviorType: KModbusType) {
         if (mSerialPortManager.mFileOutputStream == null) {
             "The read stream has not been opened yet. Maybe the serial port is not open?".error()
             return
         }
-        when(kModbusType) {
+        when(kModbusBehaviorType) {
             KModbusType.MASTER -> {
                 repeatMasterActionOnRead { data ->
                     mWriteJob.cancel()
@@ -343,7 +343,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * ● 2024-01-22 18:38:54 周一 下午
      * @author crowforkotlin
      */
-    fun cleanAllContext(): Boolean {
+    fun cancelAll(): Boolean {
         return runCatching {
             mTaskJob.cancel()
             mWriteJob.cancel()
