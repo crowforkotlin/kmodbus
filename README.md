@@ -16,7 +16,10 @@ implementation("com.kotlincrow.android.component:KModbus:1.1")
 /*
 It is recommended that you use an aar file, which contains the so dynamic library by default! 
 You don’t need to import it additionally, it can be found in Release
+
+Local aar file path : app/libs/KModbus-1.1.aar
  */
+implementation(files("libs/KModbus-1.1.aar"))
 ```
 
 |                                   ![](docs/img/KModbus_Preview.gif)                                   |

@@ -63,8 +63,9 @@ android {
 dependencies {
     // 引入App下libs文件下的所有Jar包
 //    implementation(fileTree("dir" to "libs", "include" to "*.aar"))
-    implementation("com.kotlincrow.android.component:KModbus:1.0")
+//    implementation("com.kotlincrow.android.component:KModbus:1.0")
 //    implementation(file("/app/src/libs/KModbus-1.1.aar"))O
+    implementation(files("libs/KModbus-1.1.aar"))
 
 //    implementation(project(":lib_modbus"))
     implementation(app.androidx.core.ktx)
