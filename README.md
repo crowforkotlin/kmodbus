@@ -23,9 +23,10 @@ implementation("com.kotlincrow.android.component:KModbus:1.0")
 class MainActivity : AppCompatActivity() {
 
     /*
-    If you're using RTUs or ASCIIs, you'll typically need to set RTUs and ASCIIs as global singletons. In Android, 
-    a single port should not be managed by multiple RTUs or ASCII objects, unless your RTU is handling multiple different ports. 
-    In this case, multiple ASCII and RTU objects can be constructed.
+    If you're using RTUs or ASCIIs, you'll typically need to set RTUs and ASCIIs as global singletons. 
+    In Android, a single port should not be managed by multiple RTUs or ASCII objects, 
+    unless your RTU is handling multiple different ports. In this case, 
+    multiple ASCII and RTU objects can be constructed.
     */
     private val mKModbusRtu = KModbusRtu()
     private val mKModbusTcp = KModbusTcp()
