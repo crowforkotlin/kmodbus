@@ -6,6 +6,7 @@
 
 - **Support Rtu、Tcp、Ascii**
 - **Built-in polling and reconnection processing mechanism**
+- **[Refer to GB2312 code](https://www.khngai.com/chinese/charmap/tblgb.php?page=0)**
 
 ```kotlin
 repositories { mavenCentral() }
