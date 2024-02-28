@@ -1,8 +1,7 @@
 @file:Suppress("SpellCheckingInspection", "unused")
 
-package com.listen.x3player.kt.modbus
+package com.crow.modbus
 
-import com.crow.modbus.KModbus
 import com.crow.modbus.interfaces.IKModbusWriteData
 import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.model.KModbusTcpMasterResp

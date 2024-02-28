@@ -12,6 +12,10 @@ dependencyResolutionManagement {
         create("ktor") {
             from(files("gradle/ktor.versions.toml"))
         }
+
+        create("app") {
+            from(files("gradle/app.versions.toml"))
+        }
     }
 
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)

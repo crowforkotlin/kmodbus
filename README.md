@@ -11,9 +11,12 @@
 ```kotlin
 repositories { mavenCentral() }
 
-implementation("com.kotlincrow.android.component:KModbus:1.0")
+implementation("com.kotlincrow.android.component:KModbus:1.1")
 
-// In addition, you also need to introduce libSerial Port.so into your project, which can be found in Release
+/*
+It is recommended that you use an aar file, which contains the so dynamic library by default! 
+You don’t need to import it additionally, it can be found in Release
+ */
 ```
 
 |                                   ![](docs/img/KModbus_Preview.gif)                                   |

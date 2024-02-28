@@ -4,8 +4,8 @@ import com.android.build.gradle.tasks.NativeBuildSystem
 
 @Suppress("DSL_SCOPE_VIOLATION") // TODO: Remove once KTIJ-19369 is fixed
 plugins {
-    alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlinAndroid)
+    alias(app.plugins.android.application)
+    alias(app.plugins.android.kotlin)
 }
 
 android {
@@ -61,12 +61,15 @@ android {
 }
 
 dependencies {
-//    implementation(fileTree("dir" to "libs", "include" to "*.jar"))
+    // 引入App下libs文件下的所有Jar包
+//    implementation(fileTree("dir" to "libs", "include" to "*.aar"))
+    implementation("com.kotlincrow.android.component:KModbus:1.0")
+//    implementation(file("/app/src/libs/KModbus-1.1.aar"))O
 
-    implementation(project(":lib_modbus"))
-    implementation(libs.core.ktx)
-    implementation(libs.appcompat)
-    implementation(libs.material)
-    implementation(libs.constraintlayout)
-    implementation(libs.gson)
+//    implementation(project(":lib_modbus"))
+    implementation(app.androidx.core.ktx)
+    implementation(app.androidx.appcompat)
+    implementation(app.androidx.material)
+    implementation(app.androidx.constraintlayout)
+//    implementation(libs.gson)
 }
