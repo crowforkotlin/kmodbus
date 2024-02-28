@@ -12,7 +12,7 @@ repositories { mavenCentral() }
 
 implementation("com.kotlincrow.android.component:KModbus:1.0")
 
-// In addition, you also need to introduce lib Serial Port.so into your project, which can be found in Release
+// In addition, you also need to introduce libSerial Port.so into your project, which can be found in Release
 ```
 
 ```kotlin
