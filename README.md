@@ -15,9 +15,9 @@ implementation("com.kotlincrow.android.component:KModbus:1.0")
 // In addition, you also need to introduce libSerial Port.so into your project, which can be found in Release
 ```
 
-|  ![](docs/img/KModbus_Preview.gif)  |
-|:-----------------------------------:|
-| Left->RTU 1000MS / Right ->TCP 50MS |
+|                                   ![](docs/img/KModbus_Preview.gif)                                   |
+|:-----------------------------------------------------------------------------------------------------:|
+| Left->Tcp 1000ms (HoldingRegisters - GB2312 - String)  /  Right ->Rtu 50ms (HoldingRegisters - Int16) |
 
 ```kotlin
 class MainActivity : AppCompatActivity() {
