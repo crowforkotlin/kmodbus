@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initTcp(host: String, port: Int) {
         mKModbusTcp.apply{
-            startTcp(host, port, true) { ins, ops ->
+            startTcp(host, port, retry = true) { ins, ops ->
                 addOnMasterReceiveListener {  arrays -> "Tcp : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
                 setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
                 startRepeatReceiveDataTask(ins, KModbusType.MASTER)

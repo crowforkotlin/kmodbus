@@ -680,3 +680,15 @@
 {"ts":1709099503748,"action":"IDE_ACTIVATED"}
 {"ts":1709099504999,"action":"IDE_DEACTIVATED"}
 {"ts":1709099545831,"action":"IDE_ACTIVATED"}
+{"ts":1709099666230,"action":"IDE_DEACTIVATED"}
+{"ts":1709099670300,"action":"IDE_ACTIVATED"}
+{"ts":1709099671260,"action":"IDE_DEACTIVATED"}
+{"ts":1709099763987,"action":"IDE_ACTIVATED"}
+{"ts":1709099764679,"action":"IDE_DEACTIVATED"}
+{"ts":1709099767324,"action":"IDE_ACTIVATED"}
+{"ts":1709099778203,"action":"FILE_CLOSED","file":"/README.md","tags":{"FILE_LINE_OF_CODE":"114"}}
+{"ts":1709099778203,"action":"FILE_OPENED","file":"/app/src/main/kotlin/com/crow/kmodbus/MainActivity.kt","tags":{"FILE_LINE_OF_CODE":"121"}}
+{"ts":1709099851752,"action":"FILE_CLOSED","file":"/app/src/main/kotlin/com/crow/kmodbus/MainActivity.kt","tags":{"FILE_LINE_OF_CODE":"120"}}
+{"ts":1709099851752,"action":"FILE_OPENED","file":"/lib_modbus/src/main/kotlin/com/crow/modbus/KModbusTcp.kt","tags":{"FILE_LINE_OF_CODE":"300"}}
+{"ts":1709099868925,"action":"IDE_DEACTIVATED"}
+{"ts":1709099875264,"action":"IDE_ACTIVATED"}
