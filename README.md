@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
             openSerialPort(ttysNumber = ttySNumber, baudRate = baudRate, parity = SerialPortParityFunction.NONE, stopBit = 1, dataBit = 8)
 
             // Set the listener for data returned from the slave station in master mode
-            addOnMasterReceiveListener { arrays -> "RTU : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
+            addOnMasterReceiveListener { arrays -> "Rtu : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
 
             // If you want to poll and write multiple data, you can add the data to the queue in the same way as listOf.
             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity() {
             startRepeatReceiveDataTask(kModbusBehaviorType = KModbusType.MASTER)
 
             // Enable polling tasks for writing data, with built-in timeout mechanism
-            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "RTU TIME OUT!".info() }
+            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "Rtu time out!".info() }
 
             // If you do not enable polling writing, you can also manually control the writing of data yourself.
             /* 
@@ -78,10 +78,10 @@ class MainActivity : AppCompatActivity() {
     private fun initTcp(host: String, port: Int) {
         mKModbusTcp.apply{
             startTcp(host, port, true) { ins, ops ->
-                addOnMasterReceiveListener {  arrays -> "TCP : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
+                addOnMasterReceiveListener {  arrays -> "Tcp : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
                 setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
                 startRepeatReceiveDataTask(ins, KModbusType.MASTER)
-                startRepeatWriteDataTask(ops, interval = 1000L, timeOut = 1000L) { "TCP TIME OUT!".info() }
+                startRepeatWriteDataTask(ops, interval = 1000L, timeOut = 1000L) { "Tcp time out!".info() }
             }
         }
     }
@@ -89,10 +89,10 @@ class MainActivity : AppCompatActivity() {
     private fun initAscii(ttySNumber: Int, baudRate: Int) {
         mKModbusAscii.apply {
             openSerialPort(ttySNumber, baudRate)
-            addOnMasterReceiveListener { arrays -> "ASCII : ${arrays.toHexList()}".info() }
+            addOnMasterReceiveListener { arrays -> "Ascii : ${arrays.toHexList()}".info() }
             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
             startRepeatReceiveDataTask(KModbusType.MASTER)
-            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "ASCII TIME OUT!".info() }
+            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "Ascii time out!".info() }
         }
     }
 }
