@@ -10,13 +10,15 @@ import androidx.appcompat.app.AppCompatActivity
 import com.crow.kmodbus.databinding.ActivityMainBinding
 import com.crow.modbus.KModbusAscii
 import com.crow.modbus.KModbusRtu
+import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
+import com.crow.modbus.model.KModbusRtuMasterResp
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.serialport.BaudRate
 import com.crow.modbus.serialport.SerialPortParityFunction
 import com.crow.modbus.tools.toHexList
-import com.crow.modbus.tools.toIntData
+import com.crow.modbus.tools.toInt32Data
 import com.crow.modbus.tools.toStringGB2312
 import com.listen.x3player.kt.modbus.KModbusTcp
 import kotlinx.coroutines.MainScope
@@ -47,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         // You can open different serial ports by constructing multiple KModbusRtu, the same goes for TCP and ASCII
         initRTU(ttySNumber = 0, BaudRate.S_9600)
 //        initAscii(ttySNumber = 3, BaudRate.S_9600)
-        initTcp(host = "192.168.1.101", port = 502)
+//        initTcp(host = "192.168.1.101", port = 502)
     }
 
     private fun initRTU(ttySNumber: Int, baudRate: Int) {
@@ -58,23 +60,32 @@ class MainActivity : AppCompatActivity() {
             // Set the listener for data returned from the slave station in master mode
             addOnMasterReceiveListener { arrays ->
                 runCatching {
-                    val resp = resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG) ?: return@addOnMasterReceiveListener
-                    val content = resp.mValues.toIntData(index = 0, length = 2)
+                    // No matter what data is written, as long as the parsed data is empty, it is incorrect!
+                    val resp: KModbusRtuMasterResp = resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG) ?: return@addOnMasterReceiveListener
+
+                    // Even if the data is parsed, it's possible that mValues will be null, and that's because the modbus slave will return a successful response by default!
+                    val content: Long = resp.mValues.toInt32Data(index = 0, length = 2) ?: return@runCatching
                     mMainScope.launch {
-                        mBinding.rtu.text = content
+                        mBinding.rtu.text = content.toString()
                     }
                 }
                 "Rtu : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info()
             }
 
             // If you want to poll and write multiple data, you can add the data to the queue in the same way as listOf.
-            setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
+//            setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
 
             // Set the reading behavior to: master mode. If it is slave mode, it means that the data sent by the master station will be read.
             startRepeatReceiveDataTask(kModbusBehaviorType = KModbusType.MASTER)
-
+            writeData(mKModbusRtu.buildMasterOutput(
+                function = KModbusFunction.READ_HOLDING_REGISTERS,
+                slaveAddress = 1,
+                startAddress = 1,
+                count = 2,
+                value = 4
+            ))
             // Enable polling tasks for writing data, with built-in timeout mechanism
-            startRepeatWriteDataTask(interval = 50, timeOut = 1000L) { "Rtu Time out!".info() }
+//            startRepeatWriteDataTask(interval = 50, timeOut = 1000L) { "Rtu Time out!".info() }
 
             // If you do not enable polling writing, you can also manually control the writing of data yourself.
            /*

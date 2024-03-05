@@ -231,14 +231,26 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     internal inline fun onReadRepeatEnv(crossinline onRepat: suspend (BufferedInputStream?) -> Unit) {
         mReadJob.cancelChildren()
         mReadContext.launch {
+            while (isActive) {
+                if (mFileInputStream == null) {
+                    "The read stream has not been opened yet. Maybe the serial port is not open?".error()
+                    return@launch
+                }
+                runCatching { onRepat(mFileInputStream) }
+                    .onFailure { cause -> cause.stackTraceToString().error() }
+            }
+        }
+    }
+
+    internal inline fun onReadEnv(crossinline onRead: suspend (BufferedInputStream?) -> Unit) {
+        mReadJob.cancelChildren()
+        mReadContext.launch {
             if (mFileInputStream == null) {
                 "The read stream has not been opened yet. Maybe the serial port is not open?".error()
                 return@launch
             }
-            while (isActive) {
-                runCatching { onRepat(mFileInputStream) }
-                    .onFailure { cause -> cause.stackTraceToString().error() }
-            }
+            runCatching { onRead(mFileInputStream) }
+                .onFailure { cause -> cause.stackTraceToString().error() }
         }
     }
 

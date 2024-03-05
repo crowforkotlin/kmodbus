@@ -318,7 +318,7 @@ fun BufferedInputStream.readBytes(size: Int, isReverse: Boolean = false): ByteAr
     return if (isReverse) bytes.reversedArray() else bytes
 }
 
-fun ByteArray.toIntData(intBitLength: Int = 2, isUnsigned: Boolean = false): List<Number> {
+fun ByteArray.toInt32Data(intBitLength: Int = 2, isUnsigned: Boolean = false): List<Number> {
     return runCatching {
         when (intBitLength) {
             1 -> map { it.toInt() }
@@ -343,23 +343,29 @@ fun ByteArray.toIntData(intBitLength: Int = 2, isUnsigned: Boolean = false): Lis
         .getOrElse { listOf() }
 }
 
-fun ByteArray.toFloatData(index: Int, precision: Int): String {
+fun ByteArray.toFloatData(index: Int, precision: Int): String? {
     return runCatching { "%.${precision}f".format(toFloat32(byteArrayOf(this[index], this[index + 1], this[index + 2], this[index + 3]))) }
         .onFailure { it.stackTraceToString().error()  }
-        .getOrElse { "0.0" }
+        .getOrElse { null }
 }
 
-fun ByteArray.toIntData(index: Int, length: Int = 2, isUnsigned: Boolean = false): String {
+/**
+ * ⦁ 无符号32 为 Long 64，故返回Long
+ *
+ * ⦁ 2024-03-05 10:12:35 周二 上午
+ * @author crowforkotlin
+ */
+fun ByteArray.toInt32Data(index: Int, length: Int = 2, isUnsigned: Boolean = false): Long? {
     return runCatching {
         when (length) {
-            1 -> this[index].toInt().toString()
-            2 -> (if (isUnsigned) toUInt16(this, index) else toInt16(this, index)).toString()
-            4 -> (if (isUnsigned) toUInt32(this, index) else toInt32(this, index)).toString()
-            else -> kotlin.error("不合法的整形长度参数！")
+            1 -> this[index].toLong()
+            2 -> (if (isUnsigned) toUInt16(this, index).toLong() else toInt16(this, index)).toLong()
+            4 -> (if (isUnsigned) toUInt32(this, index) else toInt32(this, index)).toLong()
+            else -> kotlin.error("Illegal integer length parameter!")
         }
     }
         .onFailure { it.stackTraceToString().error()  }
-        .getOrElse { "0" }
+        .getOrElse { null }
 }
 
 /**
@@ -371,9 +377,9 @@ fun ByteArray.toIntData(index: Int, length: Int = 2, isUnsigned: Boolean = false
 fun Float.toIntArray() = with(fromFloat32(this)) { intArrayOf(toInt16(this, 0), toInt16(this, 2)) }
 
 
-fun ByteArray.toStringGB2312(index: Int, length: Int) : String {
+fun ByteArray.toStringGB2312(index: Int, length: Int) : String? {
     return runCatching {
         String(copyOfRange(index, index + (length shl 1)), charset = charset("GB2312")) }
         .onFailure { it.stackTraceToString().error()  }
-        .getOrElse { "0" }
+        .getOrElse { null }
 }

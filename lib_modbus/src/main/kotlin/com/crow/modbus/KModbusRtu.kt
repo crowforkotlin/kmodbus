@@ -26,6 +26,7 @@ import com.crow.modbus.tools.readBytes
 import com.crow.modbus.tools.toInt16
 import com.crow.modbus.tools.toUInt16LittleEndian
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -33,8 +34,10 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.util.concurrent.Executors
+import kotlin.coroutines.coroutineContext
 
 /**
  * ● KModbusRtu
@@ -103,26 +106,8 @@ class KModbusRtu : KModbus(), ISerialPortExt {
     private fun repeatMasterActionOnRead(onReceive: suspend (ByteArray) -> Unit) {
         val headByteSize = 3
         mSerialPortManager.onReadRepeatEnv {
-            it?.let { bis ->
-                val headBytes = ByteArray(headByteSize)
-                var headReaded = 0
-                while (headReaded < headByteSize) {
-                    val readed = bis.read(headBytes, headReaded, headByteSize - headReaded)
-                    if (readed == - 1) { break }
-                    headReaded += readed
-                }
-                val completeByteSize = headBytes.last().toInt() + 5
-                val completeBytes = ByteArray(completeByteSize)
-                var completeReaded = 3
-                completeBytes[0] = headBytes[0]
-                completeBytes[1] = headBytes[1]
-                completeBytes[2] = headBytes[2]
-                while (completeReaded < completeByteSize) {
-                    val readed = bis.read(completeBytes, completeReaded, completeByteSize - completeReaded)
-                    if (readed == -1) break
-                    completeReaded += readed
-                }
-                onReceive(completeBytes)
+            it?.let {
+                onReceive(onRead(headByteSize, it))
             }
         }
     }
@@ -173,12 +158,45 @@ class KModbusRtu : KModbus(), ISerialPortExt {
     }
 
     /**
+     * ⦁  单独读取数据
+     *
+     * ⦁ 2024-03-05 09:57:55 周二 上午
+     * @author crowforkotlin
+     */
+    private suspend fun onRead(headByteSize: Int, bis: BufferedInputStream): ByteArray {
+        val headBytes = ByteArray(headByteSize)
+        var headReaded = 0
+        while (headReaded < headByteSize) {
+            val readed = withContext(coroutineContext) { bis.read(headBytes, headReaded, headByteSize - headReaded) }
+            if (readed == - 1) { break }
+            headReaded += readed
+        }
+        val completeByteSize = headBytes.last().toInt() + 5
+        val completeBytes = ByteArray(completeByteSize)
+        var completeReaded = 3
+        completeBytes[0] = headBytes[0]
+        completeBytes[1] = headBytes[1]
+        completeBytes[2] = headBytes[2]
+        while (completeReaded < completeByteSize) {
+            val readed = withContext(coroutineContext) { bis.read(completeBytes, completeReaded, completeByteSize - completeReaded) }
+            if (readed == -1) break
+            completeReaded += readed
+        }
+        return completeBytes
+    }
+
+    /**
      * ● 写入数据
      *
      * ● 2024-01-10 20:07:29 周三 下午
      * @author crowforkotlin
      */
     fun writeData(array: ByteArray) { mSerialPortManager.mWriteContext.launch { mSerialPortManager.writeBytes(array) } }
+
+    private fun readData(onReceive: suspend (ByteArray) -> Unit) {
+        val headByteSize = 3
+        mSerialPortManager.onReadEnv { onReceive(onRead(headByteSize, it ?: return@onReadEnv)) }
+    }
 
     /**
      * ● 启用接受数据的任务
