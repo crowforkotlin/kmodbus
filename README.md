@@ -64,8 +64,18 @@ class MainActivity : AppCompatActivity() {
             // The openSerialPort function has multiple overloads. You can customize the incoming control, serial port, baud rate, check mode, stop bit, and data bit.
             openSerialPort(ttysNumber = ttySNumber, baudRate = baudRate, parity = SerialPortParityFunction.NONE, stopBit = 1, dataBit = 8)
 
-            // Set the listener for data returned from the slave station in master mode
-            addOnMasterReceiveListener { arrays -> "Rtu : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info() }
+            // St the listener for data returned from the slave station in master mode
+            // Only the response data of the read instruction is processed, because only the frame format of this response data meets the requirements
+            addOnMasterReceiveListener { arrays -> 
+                
+                // No matter what data is written, as long as the parsed data is empty, it is incorrect!
+                val resp: KModbusRtuMasterResp = resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG) ?: return@addOnMasterReceiveListener
+
+                // Even if the data is parsed, it's possible that mValues will be null, and that's because the modbus slave will return a successful response by default!
+                val content: Long = resp.mValues.toInt32Data(index = 0, length = 2) ?: return@runCatching
+                
+                "Rtu : $resp".info()
+            }
 
             // If you want to poll and write multiple data, you can add the data to the queue in the same way as listOf.
             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
