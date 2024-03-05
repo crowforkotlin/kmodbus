@@ -2,8 +2,8 @@ import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
 import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
-    alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.kotlinAndroid)
+    alias(app.plugins.android.library)
+    alias(app.plugins.android.kotlin)
     alias(libs.plugins.mavenPublish)
 }
 
@@ -54,9 +54,8 @@ mavenPublishing {
 
 dependencies {
 
-    implementation(libs.core.ktx)
-    implementation(libs.appcompat)
-    implementation(libs.material)
+//    implementation(libs.core.ktx)
+    implementation(libs.kotlin.coroutines.core)
 }
 
 afterEvaluate {

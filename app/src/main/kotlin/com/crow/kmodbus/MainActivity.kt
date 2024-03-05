@@ -20,7 +20,7 @@ import com.crow.modbus.serialport.SerialPortParityFunction
 import com.crow.modbus.tools.toHexList
 import com.crow.modbus.tools.toInt32Data
 import com.crow.modbus.tools.toStringGB2312
-import com.listen.x3player.kt.modbus.KModbusTcp
+import com.crow.modbus.KModbusTcp
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
