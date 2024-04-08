@@ -1,15 +1,23 @@
 package com.crow.kmodbus
-
 import com.crow.modbus.KModbusRtu
 import com.crow.modbus.model.KModbusFunction
+import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.asciiHexToByte
+import com.crow.modbus.tools.splitInt8ToBits
 import com.crow.modbus.tools.toAsciiHexByte
 import com.crow.modbus.tools.toAsciiHexBytes
 import com.crow.modbus.tools.toHexList
 import com.crow.modbus.tools.toIntArray
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.experimental.and
+import kotlin.system.measureNanoTime
+import kotlin.system.measureTimeMillis
 
-@OptIn(ExperimentalStdlibApi::class)
+
 suspend fun main() {
     println(
         KModbusRtu().buildMasterOutput(
@@ -28,3 +36,4 @@ suspend fun main() {
     println((function.toInt() and 0xF) + 0x80)
     println((function.toInt() and 0xF) + 0x80 == function.toInt())
 }
+

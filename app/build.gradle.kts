@@ -65,9 +65,9 @@ dependencies {
 //    implementation(fileTree("dir" to "libs", "include" to "*.aar"))
 //    implementation("com.kotlincrow.android.component:KModbus:1.0")
 //    implementation(file("/app/src/libs/KModbus-1.1.aar"))O
-    implementation(files("libs/KModbus-1.1.aar"))
+//    implementation(files("libs/KModbus-1.1.aar"))
 
-//    implementation(project(":lib_modbus"))
+    implementation(project(":lib_modbus"))
     implementation(app.androidx.core.ktx)
     implementation(app.androidx.appcompat)
     implementation(app.androidx.material)

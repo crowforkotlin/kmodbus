@@ -9,7 +9,7 @@ import com.crow.modbus.model.KModbusRtuMasterResp
 import com.crow.modbus.model.KModbusRtuSlaveResp
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
-import com.crow.modbus.model.getFunction
+import com.crow.modbus.model.getKModbusFunction
 import com.crow.modbus.serialport.SerialPortManager
 import com.crow.modbus.serialport.SerialPortParityFunction
 import com.crow.modbus.tools.BytesOutput
@@ -36,9 +36,9 @@ import java.io.BufferedInputStream
 import java.util.concurrent.Executors
 
 /**
- * ● KModbusASCll$
+ * ⦁  KModbusASCll$
  *
- * ● 2024/1/23 18:42
+ * ⦁  2024/1/23 18:42
  * @author crowforkotlin
  */
 class KModbusAscii : KModbus(), ISerialPortExt {
@@ -49,34 +49,34 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 读取监听
+     * ⦁  读取监听
      *
-     * ● 2024-01-10 18:19:38 周三 下午
+     * ⦁  2024-01-10 18:19:38 周三 下午
      * @author crowforkotlin
      */
     private var mSlaveReadListener: ArrayList<(KModbusRtuSlaveResp) -> Unit>? = null
     private var mMasterReadListener: ArrayList<(ByteArray) -> Unit>? = null
 
     /**
-     * ● 写入监听
+     * ⦁  写入监听
      *
-     * ● 2024-01-10 18:29:07 周三 下午
+     * ⦁  2024-01-10 18:29:07 周三 下午
      * @author crowforkotlin
      */
     private var mWriteListener: IKModbusWriteData? = null
 
     /**
-     * ● 自定义读取监听器
+     * ⦁  自定义读取监听器
      *
-     * ● 2024-01-10 19:44:41 周三 下午
+     * ⦁  2024-01-10 19:44:41 周三 下午
      * @author crowforkotlin
      */
     private var mCustomReadListener: ((BufferedInputStream) -> Unit)? = null
 
     /**
-     * ● 串口管理
+     * ⦁  串口管理
      *
-     * ● 2024-01-10 19:23:42 周三 下午
+     * ⦁  2024-01-10 19:23:42 周三 下午
      * @author crowforkotlin
      */
     private val mSerialPortManager by lazy { SerialPortManager() }
@@ -90,9 +90,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 跳过等待
+     * ⦁  跳过等待
      *
-     * ● 2024-01-25 18:06:23 周四 下午
+     * ⦁  2024-01-25 18:06:23 周四 下午
      * @author crowforkotlin
      */
     var mSkipAwait: Boolean = false
@@ -120,9 +120,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 作为主站去读取数据
+     * ⦁  作为主站去读取数据
      *
-     * ● 2023-12-04 15:02:40 周一 下午
+     * ⦁  2023-12-04 15:02:40 周一 下午
      * @author crowforkotlin
      */
     private fun repeatMasterActionOnRead(onReceive: suspend (ByteArray) -> Unit) {
@@ -188,22 +188,22 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 作为从站去读取数据
+     * ⦁  作为从站去读取数据
      *
-     * ● 2024-01-10 19:48:17 周三 下午
+     * ⦁  2024-01-10 19:48:17 周三 下午
      * @author crowforkotlin
      */
     private fun repeatSlaveActionOnRead(onReceive: suspend (KModbusRtuSlaveResp) -> Unit) {
         mSerialPortManager.onReadRepeatEnv {
             it?.let { bis ->
                 val slave = bis.read()
-                when (val function = getFunction(bis.read())) {
+                when (val function = getKModbusFunction(bis.read())) {
                     KModbusFunction.WRITE_SINGLE_REGISTER, KModbusFunction.WRITE_SINGLE_COIL -> {
                         val bytes = bis.readBytes(6)
                         val address = toInt16(bytes)
                         val values = byteArrayOf(bytes[2], bytes[3])
                         val crc = toUInt16LittleEndian(bytes, 4)
-                        onReceive(KModbusRtuSlaveResp(slave, function, address, null, values, crc))
+                        onReceive(KModbusRtuSlaveResp(slave, function, address, null, null, values, crc))
                     }
 
                     KModbusFunction.READ_COILS, KModbusFunction.READ_DISCRETE_INPUTS, KModbusFunction.READ_INPUT_REGISTERS, KModbusFunction.READ_HOLDING_REGISTERS -> {
@@ -211,11 +211,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
                         val address = toInt16(bytes)
                         val count = toInt16(bytes, 2)
                         val crc = toUInt16LittleEndian(bytes, 4)
-                        onReceive(KModbusRtuSlaveResp(slave, function, address, count, null, crc))
+                        onReceive(KModbusRtuSlaveResp(slave, function, address, count, null, null, crc))
                     }
-
-                    KModbusFunction.WRITE_HOLDING_REGISTERS, KModbusFunction.WRITE_COILS -> {
-
+                    KModbusFunction.WRITE_MULTIPLE_REGISTERS, KModbusFunction.WRITE_MULTIPLE_COILS -> {
                     }
                 }
             }
@@ -223,9 +221,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 自定义读取规则 手动读取解析数据
+     * ⦁  自定义读取规则 手动读取解析数据
      *
-     * ● 2024-01-10 19:48:26 周三 下午
+     * ⦁  2024-01-10 19:48:26 周三 下午
      * @author crowforkotlin
      */
     private fun repeatCustomActionOnRead(onReceive: suspend (BufferedInputStream) -> Unit) {
@@ -235,9 +233,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 写入数据
+     * ⦁  写入数据
      *
-     * ● 2024-01-10 20:07:29 周三 下午
+     * ⦁  2024-01-10 20:07:29 周三 下午
      * @author crowforkotlin
      */
     fun writeData(array: ByteArray) {
@@ -245,9 +243,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 启用接受数据的任务
+     * ⦁  启用接受数据的任务
      *
-     * ● 2024-01-10 18:23:52 周三 下午
+     * ⦁  2024-01-10 18:23:52 周三 下午
      * @author crowforkotlin
      */
     fun startRepeatReceiveDataTask(kModbusType: KModbusType,) {
@@ -307,9 +305,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
 
 
     /**
-     * ● 监听器
+     * ⦁  监听器
      *
-     * ● 2024-01-10 20:03:16 周三 下午
+     * ⦁  2024-01-10 20:03:16 周三 下午
      * @author crowforkotlin
      */
     fun addOnSlaveReceiveListener(listener: (KModbusRtuSlaveResp) -> Unit) {
@@ -355,9 +353,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 构建KModbusRTU 主站输出数据
+     * ⦁  构建KModbusRTU 主站输出数据
      *
-     * ● 2024-01-16 16:52:43 周二 下午
+     * ⦁  2024-01-16 16:52:43 周二 下午
      * @author crowforkotlin
      * @param function 功能码
      * @param slaveAddress 设备地址
@@ -390,9 +388,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 解析主站接收到的响应数据
+     * ⦁  解析主站接收到的响应数据
      *
-     * ● 2024-01-22 17:12:13 周一 下午
+     * ⦁  2024-01-22 17:12:13 周一 下午
      * @author crowforkotlin
      * @param bytes 数据包
      * @param endian 字节序
@@ -428,9 +426,9 @@ class KModbusAscii : KModbus(), ISerialPortExt {
     }
 
     /**
-     * ● 清除所有的任务,包括串口的内部任务, 并不会清除协程上下文, 任然可以继续launch
+     * ⦁  清除所有的任务,包括串口的内部任务, 并不会清除协程上下文, 任然可以继续launch
      *
-     * ● 2024-01-22 18:38:54 周一 下午
+     * ⦁  2024-01-22 18:38:54 周一 下午
      * @author crowforkotlin
      */
     fun cancelAll(): Boolean {

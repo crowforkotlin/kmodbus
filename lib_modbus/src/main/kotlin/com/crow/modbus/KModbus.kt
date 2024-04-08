@@ -9,15 +9,14 @@ import com.crow.modbus.model.KModbusFunction.READ_COILS
 import com.crow.modbus.model.KModbusFunction.READ_DISCRETE_INPUTS
 import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
 import com.crow.modbus.model.KModbusFunction.READ_INPUT_REGISTERS
-import com.crow.modbus.model.KModbusFunction.WRITE_COILS
-import com.crow.modbus.model.KModbusFunction.WRITE_HOLDING_REGISTERS
+import com.crow.modbus.model.KModbusFunction.WRITE_MULTIPLE_COILS
+import com.crow.modbus.model.KModbusFunction.WRITE_MULTIPLE_REGISTERS
 import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_COIL
 import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_REGISTER
 import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.CRC16
 import com.crow.modbus.tools.toReverseInt8
-import kotlin.experimental.and
 
 /*************************
  * @Machine: RedmiBook Pro 15 Win11
@@ -30,9 +29,9 @@ import kotlin.experimental.and
 open class KModbus protected constructor() {
 
     /**
-     * ● 构造输出的数据
+     * ⦁  构造输出的数据
      *
-     * ● 2023-10-16 16:42:18 周一 下午
+     * ⦁  2023-10-16 16:42:18 周一 下午
      * @author crowforkotlin
      */
     fun buildMasterRequestOutput(slave: Int, function: KModbusFunction, startAddress: Int, count: Int = 1, value: Int?, values: IntArray?, isTcp: Boolean = false): BytesOutput {
@@ -69,7 +68,7 @@ open class KModbus protected constructor() {
                 output.writeInt16(startAddress)
                 output.writeInt16(valueCopy)
             }
-            WRITE_HOLDING_REGISTERS -> {
+            WRITE_MULTIPLE_REGISTERS -> {
                 if(count !in 1..0xFF) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid count $count")
                 //写多个保持寄存器
                 output.writeInt8(function.mCode)
@@ -80,7 +79,7 @@ open class KModbus protected constructor() {
                 //写入数据
                 (values ?: throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in!")).forEach { output.writeInt16(it) }
             }
-            WRITE_COILS -> {
+            WRITE_MULTIPLE_COILS -> {
                 if(count !in 1..0xFF) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Invalid count $count")
                 if (values == null || values.isEmpty()) throw ModbusException(ModbusErrorType.ModbusInvalidArgumentError, "Function Is $function, Data must be passed in and cannot be empty!")
                 output.writeInt8(function.mCode)
@@ -121,9 +120,9 @@ open class KModbus protected constructor() {
     }
 
     /**
-     * ● CRC校验
+     * ⦁  CRC校验
      *
-     * ● 2023-10-16 16:06:48 周一 下午
+     * ⦁  2023-10-16 16:06:48 周一 下午
      * @author crowforkotlin
      */
     fun toCalculateCRC16(output: BytesOutput): BytesOutput {
@@ -133,9 +132,9 @@ open class KModbus protected constructor() {
     }
 
     /**
-     * ● LRC校验
+     * ⦁  LRC校验
      *
-     * ● 2023-10-16 16:06:41 周一 下午
+     * ⦁  2023-10-16 16:06:41 周一 下午
      * @author crowforkotlin
      */
     fun toCalculateLRC(data: ByteArray): Int {
@@ -157,9 +156,9 @@ open class KModbus protected constructor() {
 
 
     /**
-     * ● Convert each digit component to decimal
+     * ⦁  Convert each digit component to decimal
      *
-     * ● 2023-10-16 16:00:53 周一 下午
+     * ⦁  2023-10-16 16:00:53 周一 下午
      * @author crowforkotlin
      */
     private fun toDecimal(data: IntArray): Int {

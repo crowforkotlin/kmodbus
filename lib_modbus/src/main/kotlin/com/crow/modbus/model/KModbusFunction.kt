@@ -34,13 +34,13 @@ enum class KModbusFunction(val mCode: Int) {
     WRITE_SINGLE_REGISTER(6),
 
     //写入多个线圈寄存器
-    WRITE_COILS(15),
+    WRITE_MULTIPLE_COILS(15),
 
     //写入多个保持寄存器
-    WRITE_HOLDING_REGISTERS(16)
+    WRITE_MULTIPLE_REGISTERS(16)
 }
 
-fun getFunction(mCode: Int): KModbusFunction {
+fun getKModbusFunction(mCode: Int): KModbusFunction {
     return when(mCode) {
         KModbusFunction.READ_COILS.mCode -> KModbusFunction.READ_COILS
         KModbusFunction.READ_DISCRETE_INPUTS.mCode -> KModbusFunction.READ_DISCRETE_INPUTS
@@ -48,8 +48,8 @@ fun getFunction(mCode: Int): KModbusFunction {
         KModbusFunction.READ_INPUT_REGISTERS.mCode -> KModbusFunction.READ_INPUT_REGISTERS
         KModbusFunction.WRITE_SINGLE_COIL.mCode -> KModbusFunction.WRITE_SINGLE_COIL
         KModbusFunction.WRITE_SINGLE_REGISTER.mCode -> KModbusFunction.WRITE_SINGLE_REGISTER
-        KModbusFunction.WRITE_COILS.mCode -> KModbusFunction.WRITE_COILS
-        KModbusFunction.WRITE_HOLDING_REGISTERS.mCode -> KModbusFunction.WRITE_HOLDING_REGISTERS
+        KModbusFunction.WRITE_MULTIPLE_COILS.mCode -> KModbusFunction.WRITE_MULTIPLE_COILS
+        KModbusFunction.WRITE_MULTIPLE_REGISTERS.mCode -> KModbusFunction.WRITE_MULTIPLE_REGISTERS
         else -> error("invalid function type $mCode")
     }
 }

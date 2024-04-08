@@ -1,9 +1,9 @@
 package com.crow.modbus.model
 
 /**
- * ● KModbus Rtu 主站解析的响应数据
+ * ⦁  KModbus Rtu 主站解析的响应数据
  *
- * ● 2024-01-22 17:07:11 周一 下午
+ * ⦁  2024-01-22 17:07:11 周一 下午
  * @author crowforkotlin
  */
 data class KModbusRtuMasterResp(

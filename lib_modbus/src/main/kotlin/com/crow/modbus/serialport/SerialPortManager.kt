@@ -47,9 +47,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     private var mFailureListener = arrayListOf<ISerialPortFailure>()
 
     /**
-     * ● 修改文件权限为可读、可写、可执行
+     * ⦁  修改文件权限为可读、可写、可执行
      *
-     * ● 2023-09-23 11:41:26 周六 上午
+     * ⦁  2023-09-23 11:41:26 周六 上午
      */
     private fun changeFilePermissions(file: File): Boolean {
         return (file.takeIf { it.exists() } ?: false).runCatching {
@@ -76,9 +76,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 打开串口
+     * ⦁  打开串口
      *
-     * ● 2023-09-23 16:02:30 周六 下午
+     * ⦁  2023-09-23 16:02:30 周六 下午
      */
     override fun openSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
 
@@ -110,9 +110,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 重新打开串口
+     * ⦁  重新打开串口
      *
-     * ● 2024-01-03 18:19:08 周三 下午
+     * ⦁  2024-01-03 18:19:08 周三 下午
      * @author crowforkotlin
      */
     override fun reOpenSerialPort(com: Int, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
@@ -125,9 +125,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 关闭串口
+     * ⦁  关闭串口
      *
-     * ● 2023-09-23 16:02:12 周六 下午
+     * ⦁  2023-09-23 16:02:12 周六 下午
      */
     override  fun closeSerialPort(): Boolean {
         "◉ 正在关闭串口".info()
@@ -163,9 +163,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 重复写入
+     * ⦁  重复写入
      *
-     * ● 2023-12-01 10:46:03 周五 上午
+     * ⦁  2023-12-01 10:46:03 周五 上午
      * @author crowforkotlin
      */
     internal inline fun writeRepeat(interval: Long, crossinline onWrite: suspend () -> ByteArray?, crossinline complete: suspend (CoroutineScope) -> Unit) {
@@ -180,9 +180,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 重复读取
+     * ⦁  重复读取
      *
-     * ● 2023-12-01 10:46:33 周五 上午
+     * ⦁  2023-12-01 10:46:33 周五 上午
      * @author crowforkotlin
      */
     internal open fun onReadRepeat(onReceive: suspend (ByteArray) -> Unit) {
@@ -223,9 +223,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 循环读取环境
+     * ⦁  循环读取环境
      *
-     * ● 2024-01-10 19:50:14 周三 下午
+     * ⦁  2024-01-10 19:50:14 周三 下午
      * @author crowforkotlin
      */
     internal inline fun onReadRepeatEnv(crossinline onRepat: suspend (BufferedInputStream?) -> Unit) {
@@ -255,9 +255,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 写入字节
+     * ⦁  写入字节
      *
-     * ● 2023-12-01 10:47:02 周五 上午
+     * ⦁  2023-12-01 10:47:02 周五 上午
      * @author crowforkotlin
      */
     open fun writeBytes(bytes: ByteArray): Boolean {
@@ -269,9 +269,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 取消所有任务
+     * ⦁  取消所有任务
      *
-     * ● 2023-12-01 10:47:20 周五 上午
+     * ⦁  2023-12-01 10:47:20 周五 上午
      * @author crowforkotlin
      */
     open fun cancelAllJob() {
@@ -280,9 +280,9 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     }
 
     /**
-     * ● 串口是否开启
+     * ⦁  串口是否开启
      *
-     * ● 2023-12-01 10:47:38 周五 上午
+     * ⦁  2023-12-01 10:47:38 周五 上午
      * @author crowforkotlin
      */
     fun isSerialPortNotEnable() = mFileDescriptor == null

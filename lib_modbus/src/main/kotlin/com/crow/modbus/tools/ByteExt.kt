@@ -4,6 +4,7 @@ package com.crow.modbus.tools
 
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.lang.Float.floatToIntBits
 import kotlin.experimental.or
 
@@ -23,9 +24,9 @@ fun toReverseInt8(value: Int): Int {
 
 
 /**
- * ● 无符号Int32 为Long类型
+ * ⦁  无符号Int32 为Long类型
  *
- * ● 2024-01-10 17:46:17 周三 下午
+ * ⦁  2024-01-10 17:46:17 周三 下午
  * @author crowforkotlin
  */
 fun toUInt32(array: ByteArray, index: Int = 0): Long {
@@ -36,9 +37,9 @@ fun toUInt32(array: ByteArray, index: Int = 0): Long {
 }
 
 /**
- * ● 有符号Int32
+ * ⦁  有符号Int32
  *
- * ● 2024-01-10 17:46:17 周三 下午
+ * ⦁  2024-01-10 17:46:17 周三 下午
  * @author crowforkotlin
  */
 fun toInt32(array: ByteArray, index: Int = 0): Int {
@@ -49,9 +50,9 @@ fun toInt32(array: ByteArray, index: Int = 0): Int {
 }
 
 /**
- * ● 无符号Int16
+ * ⦁  无符号Int16
  *
- * ● 2024-01-10 17:46:26 周三 下午
+ * ⦁  2024-01-10 17:46:26 周三 下午
  * @author crowforkotlin
  */
 fun toUInt16(array: ByteArray, index: Int = 0): Int {
@@ -59,9 +60,9 @@ fun toUInt16(array: ByteArray, index: Int = 0): Int {
 }
 
 /**
- * ● 无符号Int16
+ * ⦁  无符号Int16
  *
- * ● 2024-01-10 17:46:26 周三 下午
+ * ⦁  2024-01-10 17:46:26 周三 下午
  * @author crowforkotlin
  */
 fun toUInt16LittleEndian(array: ByteArray, index: Int = 0): Int {
@@ -69,9 +70,9 @@ fun toUInt16LittleEndian(array: ByteArray, index: Int = 0): Int {
 }
 
 /**
- * ● 有符号Int16
+ * ⦁  有符号Int16
  *
- * ● 2024-01-10 17:46:17 周三 下午
+ * ⦁  2024-01-10 17:46:17 周三 下午
  * @author crowforkotlin
  */
 fun toInt16(array: ByteArray, index: Int = 0): Int {
@@ -79,9 +80,9 @@ fun toInt16(array: ByteArray, index: Int = 0): Int {
 }
 
 /**
- * ● 有符号Int16
+ * ⦁  有符号Int16
  *
- * ● 2024-01-10 17:46:17 周三 下午
+ * ⦁  2024-01-10 17:46:17 周三 下午
  * @author crowforkotlin
  */
 fun toInt16LittleEndian(array: ByteArray, index: Int = 0): Int {
@@ -89,9 +90,9 @@ fun toInt16LittleEndian(array: ByteArray, index: Int = 0): Int {
 }
 
 /**
- * ● 小端序Bytes 转 Int32
+ * ⦁  小端序Bytes 转 Int32
  *
- * ● 2023-09-23 15:07:14 周六 下午
+ * ⦁  2023-09-23 15:07:14 周六 下午
  */
 fun toInt32LittleEndian(bytes: ByteArray, startIndex: Int = 0): Int {
     return (bytes[startIndex].toInt() and 0xFF) or
@@ -101,30 +102,30 @@ fun toInt32LittleEndian(bytes: ByteArray, startIndex: Int = 0): Int {
 }
 
 /**
- * ● Int8 转 Bytes
+ * ⦁  Int8 转 Bytes
  *
- * ● 2023-09-23 15:13:24 周六 下午
+ * ⦁  2023-09-23 15:13:24 周六 下午
  */
 fun fromInt8(int32: Int) = byteArrayOf((int32 and 0xFF).toByte())
 
 /**
- * ● Int16转 Bytes -- 大端序
+ * ⦁  Int16转 Bytes -- 大端序
  *
- * ● 2023-09-23 15:06:59 周六 下午
+ * ⦁  2023-09-23 15:06:59 周六 下午
  */
 fun fromInt16(int32: Int) = byteArrayOf(((int32 shr 8) and 0xFF).toByte(), (int32 and 0xFF).toByte())
 
 /**
- * ● Int16 转 Bytes -- 小端序
+ * ⦁  Int16 转 Bytes -- 小端序
  *
- * ● 2023-09-23 15:06:36 周六 下午
+ * ⦁  2023-09-23 15:06:36 周六 下午
  */
 fun fromInt16LittleEndian(int32: Int) = byteArrayOf((int32 and 0xFF).toByte(), ((int32 shr 8) and 0xFF).toByte())
 
 /**
- * ● Int32 转 Bytes -- 大端序
+ * ⦁  Int32 转 Bytes -- 大端序
  *
- * ● 2023-09-23 15:06:17 周六 下午
+ * ⦁  2023-09-23 15:06:17 周六 下午
  */
 fun fromInt32(int32: Int) = byteArrayOf(
     ((int32 shr 24) and 0xFF).toByte(),
@@ -134,9 +135,9 @@ fun fromInt32(int32: Int) = byteArrayOf(
 )
 
 /**
- * ● Int32 转 Bytes -- 小端序
+ * ⦁  Int32 转 Bytes -- 小端序
  *
- * ● 2023-09-23 15:05:49 周六 下午
+ * ⦁  2023-09-23 15:05:49 周六 下午
  */
 fun fromInt32LitterEndian(int32: Int) = byteArrayOf(
     (int32 and 0xFF).toByte(),
@@ -146,9 +147,9 @@ fun fromInt32LitterEndian(int32: Int) = byteArrayOf(
 )
 
 /**
- * ● 大端序Int 构建新的ByteArray
+ * ⦁  大端序Int 构建新的ByteArray
  *
- * ● 2023-09-13 16:52:36 周三 下午
+ * ⦁  2023-09-13 16:52:36 周三 下午
  */
 @Deprecated("It may be removed in the future.")
 fun toByteArrayBigEndian(value: Any): ByteArray {
@@ -186,9 +187,9 @@ fun toByteArrayBigEndian(value: Any): ByteArray {
 }
 
 /**
- * ● 大端序Int 构建新的ByteArray
+ * ⦁  大端序Int 构建新的ByteArray
  *
- * ● 2023-09-13 16:52:36 周三 下午
+ * ⦁  2023-09-13 16:52:36 周三 下午
  */
 @Deprecated("It may be removed in the future.")
 fun toByteArrayLittleEndian(value: Any): ByteArray {
@@ -232,9 +233,9 @@ fun fromAsciiInt8(value: Int): Pair<Byte, Byte> {
 }
 
 /**
- * ● AscillInt16 to ByteArray
+ * ⦁  AscillInt16 to ByteArray
  *
- * ● 2024-01-16 17:19:46 周二 下午
+ * ⦁  2024-01-16 17:19:46 周二 下午
  * @author crowforkotlin
  */
 fun fromAsciiInt16(value: Int): ByteArray {
@@ -307,7 +308,7 @@ fun ByteArray.copy(): ByteArray {
     return array
 }
 
-fun BufferedInputStream.readBytes(size: Int, isReverse: Boolean = false): ByteArray {
+fun InputStream.readBytes(size: Int, isReverse: Boolean = false): ByteArray {
     val bytes = ByteArray(size)
     var bytesReaded = 0
     while (bytesReaded < size) {
@@ -317,10 +318,20 @@ fun BufferedInputStream.readBytes(size: Int, isReverse: Boolean = false): ByteAr
     }
     return if (isReverse) bytes.reversedArray() else bytes
 }
+fun InputStream.readBytesAndGetReaded(size: Int, isReverse: Boolean = false): Pair<Int, ByteArray> {
+    val bytes = ByteArray(size)
+    var bytesReaded = 0
+    while (bytesReaded < size) {
+        val readed = read(bytes, bytesReaded, size - bytesReaded)
+        if (readed == -1) { break }
+        bytesReaded += readed
+    }
+    return bytesReaded to if (isReverse) bytes.reversedArray() else bytes
+}
 
-fun ByteArray.toInt32Data(intBitLength: Int = 2, isUnsigned: Boolean = false): List<Number> {
+fun ByteArray.toInt32Data(length: Int = 2, isUnsigned: Boolean = false): List<Number> {
     return runCatching {
-        when (intBitLength) {
+        when (length) {
             1 -> map { it.toInt() }
             2 -> {
                 val size = size shr 1
@@ -369,9 +380,9 @@ fun ByteArray.toInt32Data(index: Int, length: Int = 2, isUnsigned: Boolean = fal
 }
 
 /**
- * ● 浮点数转Int字节数组，一般不会超过两个元素
+ * ⦁  浮点数转Int字节数组，一般不会超过两个元素
  *
- * ● 2024-01-16 17:26:17 周二 下午
+ * ⦁  2024-01-16 17:26:17 周二 下午
  * @author crowforkotlin
  */
 fun Float.toIntArray() = with(fromFloat32(this)) { intArrayOf(toInt16(this, 0), toInt16(this, 2)) }
@@ -382,4 +393,39 @@ fun ByteArray.toStringGB2312(index: Int, length: Int) : String? {
         String(copyOfRange(index, index + (length shl 1)), charset = charset("GB2312")) }
         .onFailure { it.stackTraceToString().error()  }
         .getOrElse { null }
+}
+
+fun Int.splitInt8ToBits(value: Int): IntArray {
+    val bits = IntArray(8)
+    for (i in 0 until 8) {
+        bits[i] = (value shr (7 - i)) and 1
+    }
+    return bits
+}
+
+fun ByteArray.splitInt8ToBits(reverse: Boolean = false): IntArray {
+    val int8BitSize = 8
+    var index = 0
+    val bits = IntArray(size * int8BitSize)
+    if (reverse) {
+        forEach {
+            val value = it.toInt()
+            val end = index + int8BitSize
+            for (i in index until end) {
+                bits[i] = (value shr (i - index)) and 1
+            }
+            index += int8BitSize
+        }
+    } else {
+        forEach {
+            val value = it.toInt()
+            val end = index + int8BitSize
+            val _end = end - 1
+            for (i in index until end) {
+                bits[i] = (value shr (_end - i)) and 1
+            }
+            index += int8BitSize
+        }
+    }
+    return bits
 }

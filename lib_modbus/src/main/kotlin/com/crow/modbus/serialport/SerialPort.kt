@@ -23,13 +23,13 @@ open class SerialPort protected constructor() {
     }
 
     /**
-     * ● 打开串口
+     * ⦁  打开串口
      * @param path 串口文件路径
      * @param baudrate 波特率
      * @param parity 校验
      * @param stopbit 停止位 1 或 2
      * @param databit 数据位 5 - 8
-     * ● 2023-09-25 18:29:58 周一 下午
+     * ⦁  2023-09-25 18:29:58 周一 下午
      */
     protected fun open(path: String, baudrate: Int, parity: SerialPortParityFunction, stopbit: Int, databit: Int): FileDescriptor {
         if (stopbit !in 1..2) {
