@@ -6,9 +6,15 @@ import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.model.KModbusTcpMasterResp
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
+import com.crow.modbus.model.getKModbusFunction
 import com.crow.modbus.tools.BytesOutput
 import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
+import com.crow.modbus.tools.info
+import com.crow.modbus.tools.message
+import com.crow.modbus.tools.readBytes
+import com.crow.modbus.tools.toHexList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,9 +25,11 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.net.Socket
 import java.net.SocketException
@@ -35,6 +43,18 @@ import java.net.SocketException
  */
 class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatchers.IO) : KModbus() {
 
+    data class ClientInfo(
+        val mHost: String,
+        val mPort: Int,
+        val mAwaitTime: Long = Long.MAX_VALUE,
+        val mRetryEnable: Boolean = true,
+        val mRetryDuration: Long = 2000L,
+        val mRetry: (() -> Unit)? = null,
+        val mSuccess: (suspend KModbusTcpClient.(ins: BufferedInputStream, ops: BufferedOutputStream, clientInfo: ClientInfo, job: Job) -> List<Job>)? = null
+    )
+
+    class RetryCancellationException : CancellationException()
+
     /**
      * ⦁  事务ID
      *
@@ -44,73 +64,96 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
     private var mTransactionId: Int = 0
     private val mProtocol: Int = 0
 
-    private var mHost: String? = null
-    private var mPort: Int? = null
-    private var mRetryDuration: Long = 2000L
-    private var mSuccess: (suspend (ins: BufferedInputStream, ops: BufferedOutputStream) -> Unit)? = null
-    private var mRetry: (() -> Unit)? = null
     private var mWriteJob: Job = Job()
-    private var mServerSocket: Socket? = null
     private val mClientJob: Job = SupervisorJob()
     private val mClientScope by lazy { CoroutineScope(mDispatcher + mClientJob) }
 
-    private fun readBytes(ins: InputStream, byteReadLen: Int = 6): Pair<Int, ByteArray> {
+    /**
+     * ⦁ 读取Modbus主站响应内容
+     *
+     * ⦁ 2024-04-09 14:26:13 周二 下午
+     * @author crowforkotlin
+     */
+    private fun getModbusMasterResp(ins: InputStream) : KModbusTcpMasterResp {
+        val byteReadLen = 6
         var byteReaded = 0
-        val bytesHead = ByteArray(byteReadLen)
+        val mbap = ByteArray(byteReadLen)
         while (byteReaded < byteReadLen) {
-            val bytes = ins.read(bytesHead, byteReaded, byteReadLen)
-            if (bytes == -1) { break }
+            val bytes = ins.read(mbap, byteReaded, byteReadLen)
+            if (bytes == -1) {
+                break
+            }
             byteReaded += bytes
         }
-        val dataLen = bytesHead.last().toInt()
-        val bufferLen = byteReadLen + dataLen
-        val buffer = ByteArray(bufferLen)
-        repeat(byteReadLen) { buffer[it] = bytesHead[it] }
-        while (byteReaded < bufferLen) {
-            val bytes = ins.read(buffer, byteReaded, dataLen)
-            if (bytes == -1) { break }
-            byteReaded += bytes
+        val dataLen = mbap.last().toInt()
+        val pdu = ins.readBytes(dataLen)
+        if (pdu.isEmpty()) { ins.close() }
+        val slaveId = pdu[0].toInt() and 0xFF
+        val slaveResp = when (val function = getKModbusFunction(pdu[1].toInt())) {
+            KModbusFunction.READ_COILS, KModbusFunction.READ_HOLDING_REGISTERS, KModbusFunction.READ_INPUT_REGISTERS, KModbusFunction.READ_DISCRETE_INPUTS -> {
+                val byteCount = pdu[2].toInt()
+                val values = ByteArray(byteCount)
+                repeat(byteCount) { values[it] = pdu[3 + it] }
+                KModbusTcpMasterResp(
+                    mSlaveID = slaveId,
+                    mFunction = function,
+                    mByteCount = byteCount,
+                    mValues = values
+                )
+            }
+            else -> { kotlin.error("kmodbus tcp client get unknow function!") }
         }
-        return byteReaded to buffer
+        return slaveResp
     }
+
     /**
      * ⦁  TCP 循环读取
      *
      * ⦁  2023-12-05 18:50:42 周二 下午
      * @author crowforkotlin
      */
-    private suspend fun repeatMasterActionOnRead(ins: InputStream, onReceive: suspend (ByteArray) -> Unit) {
-        onReadRepeatEnv {
-            val bytes = readBytes(ins)
-            if (bytes.first == 0) {
-                delay(1000)
-            } else {
-                onReceive(bytes.second)
+    private suspend fun repeatMasterActionOnRead(clientInfo: ClientInfo, clientJob: Job, ins: InputStream, onReceive: suspend (KModbusTcpMasterResp) -> Unit) {
+        coroutineScope {
+            while (isActive) {
+                runCatching { onReceive(getModbusMasterResp(ins)) }
+                    .onFailure { cause ->
+                        "kmodbus tcp client repeat receive data error : ${cause.message()}".error()
+                        if (clientInfo.mRetryEnable && (cause is SocketException || cause is IOException)) {
+                            delay(clientInfo.mRetryDuration)
+                            clientInfo.mRetry?.invoke()
+                            cancel()
+                            clientJob.cancel(RetryCancellationException())
+                        }
+                    }
             }
         }
     }
 
     /**
-     * ⦁  循环写入数据任务
+     * ⦁  循环写入数据
      *
      * ⦁  2024-01-10 18:33:35 周三 下午
      * @author crowforkotlin
      */
-    suspend fun repeatWriteData(
+    fun continuouslyWriteData(
+        clientInfo: ClientInfo,
+        clientJob: Job,
         ops: BufferedOutputStream,
         interval: Long,
         timeOut: Long,
         timeOutFunc: ((ByteArray) -> Unit)? = null,
         onWrite: () -> List<ByteArray>,
-    ) {
-        coroutineScope {
+    ): Job {
+        return mClientScope.launch {
             var duration = interval
             while (isActive) {
                 runCatching {
                     if (duration < 1) duration = interval else delay(duration)
                     val arrays = onWrite()
                     arrays.forEach { array ->
+                        "kmodbus tcp client write data : ${array.toHexList()}".info()
                         ops.write(array)
+                        ops.flush()
                         mWriteJob = launch {
                             delay(timeOut)
                             duration = interval - timeOut
@@ -121,38 +164,97 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                     }
                 }
                     .onFailure { cause ->
-                        if (cause is SocketException) {
+                        "kmodbus tcp client loop write data error : ${cause.message()}".error()
+                        if (clientInfo.mRetryEnable && (cause is SocketException || cause is IOException)) {
+                            delay(clientInfo.mRetryDuration)
+                            clientInfo.mRetry?.invoke()
                             cancel()
-                            tcpClient(
-                                host = mHost ?: return@onFailure,
-                                port = mPort ?: return@onFailure,
-                                duration = mRetryDuration,
-                                onRetry = mRetry ?: return@onFailure,
-                                onSuccess = mSuccess ?: return@onFailure
-                            )
+                            clientJob.cancel(RetryCancellationException())
                         }
-                        "repeatWriteData : ${cause.stackTraceToString()}".error()
                     }
             }
         }
     }
 
+    /**
+     * ⦁ 只写入一次数据
+     *
+     * ⦁ 2024-04-09 14:36:24 周二 下午
+     * @author crowforkotlin
+     */
+    fun writeData(
+        clientInfo: ClientInfo,
+        clientJob: Job,
+        ops: BufferedOutputStream,
+        data: ByteArray,
+    ): Job {
+        return mClientScope.launch {
+            runCatching {
+                ops.write(data)
+                ops.flush()
+            }
+                .onFailure { cause ->
+                    "kmodbus tcp client writedata error : ${cause.message()}".error()
+                    if (clientInfo.mRetryEnable && (cause is SocketException || cause is IOException)) {
+                        delay(clientInfo.mRetryDuration)
+                        clientInfo.mRetry?.invoke()
+                        cancel()
+                        clientJob.cancel(RetryCancellationException())
+                    }
+                }
+        }
+    }
 
     /**
-     * ⦁  启用接受数据的任务
+     * ⦁  循环读取数据
      *
      * ⦁  2024-01-10 18:23:52 周三 下午
      * @author crowforkotlin
      */
-    suspend fun repeatReceive(ins: InputStream, kModbusType: KModbusType, onReceive: (ByteArray) -> Unit) {
-        when(kModbusType) {
-            KModbusType.MASTER -> {
-                repeatMasterActionOnRead(ins) { data ->
-                    onReceive(data)
+    fun continuouslyReadData(clientInfo: ClientInfo, clientJob: Job, ins: InputStream, kModbusType: KModbusType, onReceive: (KModbusTcpMasterResp) -> Unit): Job {
+        return mClientScope.launch {
+            when (kModbusType) {
+                    KModbusType.MASTER -> {
+                        repeatMasterActionOnRead(clientInfo, clientJob, ins) { data ->
+                            "kmodbus tcp client receive data : $data".info()
+                            mWriteJob.cancel()
+                            onReceive(data)
+                        }
+                    }
+
+                    KModbusType.SLAVE -> {
+                        kotlin.error("kmodbus tcp client cannot be set as a slave mode!")
+                    }
+
+                    KModbusType.CUSTOM -> {}
+                }
+        }
+    }
+
+    /**
+     * ⦁  仅读取一次
+     *
+     * ⦁  2024-01-10 18:23:52 周三 下午
+     * @author crowforkotlin
+     */
+    fun receiveData(clientInfo: ClientInfo, clientJob: Job, ins: InputStream, kModbusType: KModbusType, onReceive: (KModbusTcpMasterResp) -> Unit): Job {
+        return mClientScope.launch {
+            runCatching {
+                when (kModbusType) {
+                    KModbusType.MASTER -> { onReceive(getModbusMasterResp(ins)) }
+                    KModbusType.SLAVE -> { kotlin.error("kmodbus tcp client cannot be set as a slave mode!") }
+                    KModbusType.CUSTOM -> {}
                 }
             }
-            KModbusType.SLAVE -> { kotlin.error("kmodbus tcp client cannot be set as a slave mode!") }
-            KModbusType.CUSTOM -> {}
+                .onFailure { cause ->
+                    "kmodbus tcp client receive data error : ${cause.message()}".error()
+                    if (clientInfo.mRetryEnable) {
+                        delay(clientInfo.mRetryDuration)
+                        clientInfo.mRetry?.invoke()
+                        cancel()
+                        clientJob.cancel(RetryCancellationException())
+                    }
+                }
         }
     }
 
@@ -162,38 +264,43 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
      * ⦁  2024-01-23 17:30:56 周二 下午
      * @author crowforkotlin
      */
-    fun tcpClient(
-        host: String,
-        port: Int,
-        isRetry: Boolean = true,
-        duration: Long = mRetryDuration,
-        onRetry: (() -> Unit)? = null,
-        onSuccess: suspend (ins: BufferedInputStream, ops: BufferedOutputStream) -> Unit
-    ) {
-        mHost = host
-        mPort = port
-        mRetryDuration = duration
-        mSuccess = onSuccess
-        mRetry = onRetry
-        mClientScope.launch {
-            var socket: Socket? = null
-            runCatching {
-                val _socket = Socket(host, port)
-                socket = _socket
-                val ins = BufferedInputStream(_socket.getInputStream())
-                val ops = BufferedOutputStream(_socket.getOutputStream())
-                onSuccess.invoke(ins, ops)
-                _socket.close()
-            }
-                .onFailure { cause ->
-                    "kmodbus tcp client error : ${cause.stackTraceToString()}".error()
-                    socket?.close()
-                    if (isRetry) {
-                        delay(duration)
-                        onRetry?.invoke()
-                        tcpClient(host, port, true, duration, onRetry, onSuccess)
-                    }
+    fun tcpClient(clientInfo: ClientInfo): Job {
+        var socket: Socket? = null
+        var ins: BufferedInputStream? = null
+        var ops: BufferedOutputStream? = null
+        var jobs: List<Job>? = null
+        clientInfo.apply {
+            return mClientScope.launch {
+                runCatching {
+                    val _socket = Socket(mHost, mPort)
+                    "kmodbus tcp client connect! socke connected : ${_socket.isConnected}".info()
+                    socket = _socket
+                    val _ins = BufferedInputStream(_socket.getInputStream())
+                    ins = _ins
+                    val _ops = BufferedOutputStream(_socket.getOutputStream())
+                    ops = _ops
+                    val _jobs = mSuccess?.invoke(this@KModbusTcpClient, _ins, _ops, clientInfo, coroutineContext.job)
+                    jobs = _jobs
+                    if (mAwaitTime > 0) { delay(mAwaitTime) }
+                    _jobs?.forEach { it.cancel() }
+                    _socket.close()
                 }
+                    .onFailure { cause ->
+                        "kmodbus tcp client error : ${cause.message()}".error()
+                        runCatching {
+                            ins?.close()
+                            ops?.close()
+                            socket?.close()
+                        }
+                        jobs?.forEach { it.cancel() }
+                        if (mRetryEnable) {
+                            if (cause !is RetryCancellationException) { delay(mRetryDuration) }
+                            mRetry?.invoke()
+                            cancel()
+                            tcpClient(clientInfo)
+                        }
+                    }
+            }
         }
     }
 
@@ -205,9 +312,14 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
      */
     fun cancelAll() {
         mClientJob.cancelChildren()
-        mServerSocket?.close()
     }
 
+    /**
+     * ⦁ 构建主站数据
+     *
+     * ⦁ 2024-04-09 14:27:45 周二 下午
+     * @author crowforkotlin
+     */
     fun buildMasterOutput(
         function: KModbusFunction,
         slaveAddress: Int,
@@ -242,7 +354,7 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                 System.arraycopy(inputs, startIndexOfData, newBytes, 0, dataSize)
                 KModbusTcpMasterResp(
                     mSlaveID = inputs[6].toInt(),
-                    mFunction = functionCode,
+                    mFunction = getKModbusFunction(functionCode),
                     mByteCount = dataSize,
                     mValues =  newBytes
                 )
@@ -252,7 +364,7 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                 System.arraycopy(inputs, startIndexOfData, newBytes, 0, byteCount)
                 KModbusTcpMasterResp(
                     mSlaveID = inputs[6].toInt(),
-                    mFunction = functionCode,
+                    mFunction = getKModbusFunction(functionCode),
                     mByteCount = byteCount,
                     mValues =  newBytes
                 )
@@ -260,14 +372,5 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
         }
             .onFailure { it.stackTraceToString().error() }
             .getOrElse { null }
-    }
-
-    private suspend inline fun onReadRepeatEnv(crossinline onRepat: suspend () -> Unit) {
-        coroutineScope {
-            while (isActive) {
-                runCatching { onRepat() }
-                    .onFailure { cause -> cause.stackTraceToString().error() }
-            }
-        }
     }
 }

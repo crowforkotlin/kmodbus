@@ -1,16 +1,11 @@
-@file:Suppress("SpellCheckingInspection", "unused")
+@file:Suppress("SpellCheckingInspection", "unused", "LocalVariableName")
 
 package com.crow.modbus
 
-import com.crow.modbus.interfaces.IKModbusWriteData
 import com.crow.modbus.model.KModbusFunction
-import com.crow.modbus.model.KModbusTcpMasterResp
 import com.crow.modbus.model.KModbusTcpSlaveResp
 import com.crow.modbus.model.KModbusType
-import com.crow.modbus.model.ModbusEndian
 import com.crow.modbus.model.getKModbusFunction
-import com.crow.modbus.tools.BytesOutput
-import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
 import com.crow.modbus.tools.info
 import com.crow.modbus.tools.readBytes
@@ -37,25 +32,15 @@ import java.net.Socket
  * @author crowforkotlin
  * @formatter:on
  */
-class KModbusTcpServer(private val mDispatcher: CoroutineDispatcher = Dispatchers.IO) : KModbus() {
+class KModbusTcpServer(mDispatcher: CoroutineDispatcher = Dispatchers.IO) : KModbus() {
 
+    /**
+     * ⦁  从站是否自动回包
+     *
+     * ⦁ 2024-04-09 14:29:11 周二 下午
+     * @author crowforkotlin
+     */
     private var mSlaveResponseEnable: Boolean = true
-
-    /**
-     * ⦁  读取监听
-     *
-     * ⦁  2024-01-10 18:19:38 周三 下午
-     * @author crowforkotlin
-     */
-    private var mSlaveReadListener: ((KModbusTcpSlaveResp) -> Unit)? = null
-
-    /**
-     * ⦁  写入监听
-     *
-     * ⦁  2024-01-10 18:29:07 周三 下午
-     * @author crowforkotlin
-     */
-    private var mWriteListener: IKModbusWriteData? = null
 
     /**
      * ⦁  事务ID
@@ -70,7 +55,7 @@ class KModbusTcpServer(private val mDispatcher: CoroutineDispatcher = Dispatcher
     private val mRetryDuration: Long = 2000L
     private var mClientConnected: (suspend (BufferedInputStream, BufferedOutputStream) -> Unit)? = null
     private var mRetry: (() -> Unit)? = null
-    private var mServerSocket: Socket? = null
+    private var mServerSocket: ServerSocket? = null
     private val mServerJob = SupervisorJob()
     private val mServerScope = CoroutineScope(mDispatcher + mServerJob)
 
@@ -137,7 +122,7 @@ class KModbusTcpServer(private val mDispatcher: CoroutineDispatcher = Dispatcher
                     mValues = values
                 )
             }
-            else -> { kotlin.error("kmodbus client get unknow function!") }
+            else -> { kotlin.error("kmodbus server get unknow function!") }
         }
         return slaveResp
     }
@@ -175,20 +160,17 @@ class KModbusTcpServer(private val mDispatcher: CoroutineDispatcher = Dispatcher
      * ⦁  2024-01-10 18:23:52 周三 下午
      * @author crowforkotlin
      */
-    suspend fun startRepeatReceiveDataTask(ins: BufferedInputStream, ops: BufferedOutputStream, kModbusType: KModbusType) {
+    suspend fun continuouslyReadData(ins: BufferedInputStream, ops: BufferedOutputStream, kModbusType: KModbusType, onReceive: ((KModbusTcpSlaveResp) -> Unit)) {
         when(kModbusType) {
             KModbusType.MASTER -> { error("kmodbus tcp server cannot be set as a master mode!") }
             KModbusType.SLAVE -> {
                 repeatSlaveActionOnRead(ins, ops) { slaveResp ->
-                    mSlaveReadListener?.invoke(slaveResp)
+                    onReceive(slaveResp)
                 }
             }
             KModbusType.CUSTOM -> {}
         }
     }
-
-    fun setOnSlaveReceiveListener(listener: (KModbusTcpSlaveResp) -> Unit) { mSlaveReadListener = listener }
-    fun removeSlaveReceiveListener() { mSlaveReadListener = null }
 
     /**
      * ⦁  启动TCP任务
@@ -203,7 +185,10 @@ class KModbusTcpServer(private val mDispatcher: CoroutineDispatcher = Dispatcher
         mServerScope.launch {
             var serverSocket: ServerSocket? = null
             runCatching {
-                 val server = ServerSocket(port).also { serverSocket = it }
+                 val server = ServerSocket(port).also {
+                     mServerSocket = it
+                     serverSocket = it
+                 }
                 "kmodbus tcp server started!".info()
                 while (!server.isClosed) {
                     val socket = runCatching { server.accept() }.getOrNull()
@@ -258,67 +243,10 @@ class KModbusTcpServer(private val mDispatcher: CoroutineDispatcher = Dispatcher
         mServerSocket = null
     }
 
-    fun buildMasterOutput(
-        function: KModbusFunction,
-        slaveAddress: Int,
-        startAddress: Int,
-        count: Int,
-        value: Int? = null,
-        values: IntArray? = null,
-        transactionId: Int = mTransactionId,
-        endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG,
-    ): ByteArray {
-        val pdu = buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values, isTcp = true)
-        val size = pdu.size()
-        val mbap = BytesOutput()
-        mbap.writeInt16(transactionId)
-        mbap.writeInt16(mProtocol)
-        mbap.writeInt16(size + 1)
-        mbap.writeInt8(slaveAddress)
-        mbap.write(pdu.toByteArray())
-        mTransactionId++
-        return getArray(mbap.toByteArray(), endian)
-    }
-
-    fun resolveMasterResp(bytes: ByteArray, endian: ModbusEndian): KModbusTcpMasterResp? {
-        return runCatching {
-            val inputs = getArray(bytes, endian)
-            val functionCode= inputs[7].toInt() and 0xFF
-            val isFunctionCodeError = (functionCode and baseTenF) + 0x80 == functionCode
-            val startIndexOfData = 9
-            if(isFunctionCodeError) {
-                val dataSize = inputs.size - 11
-                val newBytes = ByteArray(dataSize)
-                System.arraycopy(inputs, startIndexOfData, newBytes, 0, dataSize)
-                KModbusTcpMasterResp(
-                    mSlaveID = inputs[6].toInt(),
-                    mFunction = functionCode,
-                    mByteCount = dataSize,
-                    mValues =  newBytes
-                )
-            } else {
-                val byteCount = inputs[8].toInt()
-                val newBytes = ByteArray(byteCount)
-                System.arraycopy(inputs, startIndexOfData, newBytes, 0, byteCount)
-                KModbusTcpMasterResp(
-                    mSlaveID = inputs[6].toInt(),
-                    mFunction = functionCode,
-                    mByteCount = byteCount,
-                    mValues =  newBytes
-                )
-            }
-        }
-            .onFailure { it.stackTraceToString().error() }
-            .getOrElse { null }
-    }
-
-    private fun getOps() = runCatching { BufferedOutputStream(mServerSocket?.getOutputStream()) }.getOrElse { null }
-    private fun getIns() = runCatching { BufferedInputStream(mServerSocket?.getInputStream()) }.getOrElse { null }
     private suspend inline fun onReadRepeatEnv(crossinline onRepat: suspend CoroutineScope.() -> Unit) {
         coroutineScope {
             while (isActive) {
                 onRepat()
-//                    .onFailure { cause -> cause.stackTraceToString().error() }
             }
         }
     }

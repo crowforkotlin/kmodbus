@@ -22,7 +22,9 @@ import com.crow.modbus.serialport.SerialPortManager
 import com.crow.modbus.serialport.SerialPortParityFunction
 import com.crow.modbus.tools.baseTenF
 import com.crow.modbus.tools.error
+import com.crow.modbus.tools.info
 import com.crow.modbus.tools.readBytes
+import com.crow.modbus.tools.toHexList
 import com.crow.modbus.tools.toInt16
 import com.crow.modbus.tools.toUInt16LittleEndian
 import kotlinx.coroutines.CoroutineScope
@@ -268,6 +270,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
                 if (duration < 1) duration = interval else delay(duration)
                 val arrays = mWriteListener?.onWrite() ?: continue
                 arrays.forEach { array ->
+                    array.toHexList().info()
                     mSerialPortManager.writeBytes(array)
                     mWriteJob = launch {
                         delay(timeOut)
@@ -280,7 +283,6 @@ class KModbusRtu : KModbus(), ISerialPortExt {
             }
         }
     }
-
 
     /**
      * ⦁  监听器
@@ -345,7 +347,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
     fun resolveMasterResp(bytes: ByteArray, endian: ModbusEndian): KModbusRtuMasterResp? {
         return runCatching {
             val arrays = getArray(bytes, endian)
-            val slaveId = arrays[0].toInt()
+            val slaveId = arrays[0].toInt() and 0xFF
             val function= arrays[1].toInt() and 0xFF
             val isFunctionCodeError = (function and baseTenF) + 0x80 == function
             if(isFunctionCodeError) {

@@ -7,6 +7,7 @@ package com.crow.kmodbus
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.crow.kmodbus.databinding.ActivityMainBinding
 import com.crow.modbus.KModbusAscii
 import com.crow.modbus.KModbusRtu
@@ -25,8 +26,8 @@ import com.crow.modbus.model.KModbusFunction.WRITE_MULTIPLE_COILS
 import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_COIL
 import com.crow.modbus.tools.splitInt8ToBits
 import com.crow.modbus.tools.toInt32Data
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -37,13 +38,13 @@ class MainActivity : AppCompatActivity() {
     private val mKModbusTcpServer = KModbusTcpServer()
     private val mKModbusAscii = KModbusAscii()
 
-    private val mMainScope = MainScope()
     override fun onDestroy() {
         super.onDestroy()
-        mMainScope.cancel()
         // Clear all context to prevent any references. You can also continue to use the object after clearing it to continue your tasks later.
         mKModbusRtu.cancelAll()
         mKModbusAscii.cancelAll()
+
+        // When you clear all tasks, kmodbus TCP will be forcibly terminated even if the reconnection is configured
         mKModbusTcpClient.cancelAll()
         mKModbusTcpServer.cancelAll()
     }
@@ -53,13 +54,24 @@ class MainActivity : AppCompatActivity() {
         setContentView(mBinding.root)
 
         // You can open different serial ports by constructing multiple KModbusRtu, the same goes for TCP and ASCII
-        initRtuSlave(ttySNumber = 0, BaudRate.S_9600)
-        initTcpSlave(port = 8080)
-//        initRtuMaster(ttySNumber = 0, BaudRate.S_9600)
+//        initRtuSlave(ttySNumber = 0, BaudRate.S_9600)
+//        initTcpSlave(port = 8080)
+        initRtuMaster(ttySNumber = 3, BaudRate.S_9600)
 //        initAsciiMaster(ttySNumber = 3, BaudRate.S_9600)
-//        initTcpMaster(host = "192.168.1.101", port = 502)
-    }
 
+
+        // kmodbus tcp msater support multiple client connection
+//        initTcpMaster(host = "192.168.1.102", port = 8080)
+//        initTcpMaster(host = "192.168.1.102", port = 8080)
+//        initTcpMaster(host = "192.168.1.102", port = 8080)
+//        val clinetJob = initTcpMaster(host = "192.168.1.102", port = 8080)
+//        lifecycleScope.launch {
+//            delay(3000L)
+//
+//            // If you cancel the kmodbus TCP job, regardless of whether you have the reconnection mechanism enabled or not, this will be invalid and the TCP connection will be closed
+//            clinetJob.cancel()
+//        }
+    }
 
     private fun initRtuSlave(ttySNumber: Int, baudRate: Int) {
         mKModbusRtu.apply {
@@ -97,18 +109,21 @@ class MainActivity : AppCompatActivity() {
     private fun initTcpSlave(port: Int) {
         mKModbusTcpServer.apply{
             tcpServer(port) { ins, ops ->
-                setOnSlaveReceiveListener { slaveResp ->
+                continuouslyReadData(ins, ops, KModbusType.SLAVE) { slaveResp ->
                     slaveResp.mValues?.let { value ->
-                        if (slaveResp.mFunction == WRITE_MULTIPLE_COILS) {
-                            "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList().info()}".info()
-                        } else if(slaveResp.mFunction == WRITE_SINGLE_COIL) {
-                            "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList().info()}".info()
+                        when(slaveResp.mFunction) {
+                            WRITE_MULTIPLE_COILS -> {
+                                "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList().info()}".info()
+                            }
+                            WRITE_SINGLE_COIL -> {
+                                "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList().info()}".info()
+                            }
+                            else -> { }
                         }
                         "tcp slave resp : $slaveResp".info()
                         "--------- tcp slave receive end ---------".info()
                     }
                 }
-                startRepeatReceiveDataTask(ins, ops, KModbusType.SLAVE)
             }
         }
     }
@@ -122,11 +137,12 @@ class MainActivity : AppCompatActivity() {
             addOnMasterReceiveListener { arrays ->
                 runCatching {
                     // No matter what data is written, as long as the parsed data is empty, it is incorrect!
+                    arrays.info()
                     val resp: KModbusRtuMasterResp = resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG) ?: return@addOnMasterReceiveListener
 
                     // Even if the data is parsed, it's possible that mValues will be null, and that's because the modbus slave will return a successful response by default!
                     val content: Long = resp.mValues.toInt32Data(index = 0, length = 2) ?: return@runCatching
-                    mMainScope.launch {
+                    lifecycleScope.launch {
                         mBinding.rtu.text = content.toString()
                     }
                 }
@@ -134,20 +150,20 @@ class MainActivity : AppCompatActivity() {
             }
 
             // If you want to poll and write multiple data, you can add the data to the queue in the same way as listOf.
-            // setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
+             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
 
             // Set the reading behavior to: master mode. If it is slave mode, it means that the data sent by the master station will be read.
             startRepeatReceiveDataTask(kModbusBehaviorType = KModbusType.MASTER)
 
-            writeData(mKModbusRtu.buildMasterOutput(
+            /*writeData(mKModbusRtu.buildMasterOutput(
                 function = KModbusFunction.READ_HOLDING_REGISTERS,
                 slaveAddress = 1,
                 startAddress = 1,
                 count = 2,
                 value = 4
-            ))
+            ))*/
             // Enable polling tasks for writing data, with built-in timeout mechanism
-            // startRepeatWriteDataTask(interval = 50, timeOut = 1000L) { "Rtu Time out!".info() }
+             startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "Rtu Time out!".info() }
 
             // If you do not enable polling writing, you can also manually control the writing of data yourself.
            /* mKModbusRtu.writeData(buildMasterOutput(
@@ -160,22 +176,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun initTcpMaster(host: String, port: Int) {
+    private fun initTcpMaster(host: String, port: Int): Job {
         mKModbusTcpClient.apply{
-            tcpClient(host, port, isRetry = true, onRetry = {}) { ins, ops ->
-                repeatReceive(ins, KModbusType.MASTER) { arrays ->
+            return tcpClient(KModbusTcpClient.ClientInfo(host, port) { ins, ops, clientInfo, clientJob ->
+                val receiveJob = continuouslyReadData(clientInfo, clientJob, ins, KModbusType.MASTER) { slaveResp ->
                     runCatching {
-                        val resp = resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG) ?: return@addOnMasterReceiveListener
-                        val content = resp.mValues.toStringGB2312(index = 0, length = 5)
-                        mMainScope.launch {
+                        val content = slaveResp.mValues.toStringGB2312(index = 0, length = 5)
+                        lifecycleScope.launch {
                             mBinding.tcp.text = content
                         }
                     }
                 }
-                repeatWriteData(ops, interval = 1000L, timeOut = 1000L, timeOutFunc = null) {
+                val writeJob = continuouslyWriteData(clientInfo, clientJob, ops, interval = 1000L, timeOut = 1000L) {
                     listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 5))
-                 }
-            }
+                }
+                listOf(receiveJob, writeJob)
+            })
         }
     }
 
