@@ -373,7 +373,7 @@ class KModbusAscii : KModbus(), ISerialPortExt {
         count: Int = 1,
         value: Int? = null,
         values: IntArray? = null,
-        endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG,
+        endian: ModbusEndian = ModbusEndian.ABCD,
     ): ByteArray {
         val bytes = BytesOutput()
         val output = buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values).toByteArray()

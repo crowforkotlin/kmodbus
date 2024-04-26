@@ -11,20 +11,16 @@ import androidx.lifecycle.lifecycleScope
 import com.crow.kmodbus.databinding.ActivityMainBinding
 import com.crow.modbus.KModbusAscii
 import com.crow.modbus.KModbusRtu
+import com.crow.modbus.KModbusTcpClient
+import com.crow.modbus.KModbusTcpServer
 import com.crow.modbus.model.KModbusFunction
 import com.crow.modbus.model.KModbusFunction.READ_HOLDING_REGISTERS
 import com.crow.modbus.model.KModbusRtuMasterResp
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
-import com.crow.modbus.serialport.BaudRate
 import com.crow.modbus.serialport.SerialPortParityFunction
-import com.crow.modbus.tools.toHexList
-import com.crow.modbus.tools.toStringGB2312
-import com.crow.modbus.KModbusTcpClient
-import com.crow.modbus.KModbusTcpServer
-import com.crow.modbus.model.KModbusFunction.WRITE_MULTIPLE_COILS
-import com.crow.modbus.model.KModbusFunction.WRITE_SINGLE_COIL
 import com.crow.modbus.tools.splitInt8ToBits
+import com.crow.modbus.tools.toHexList
 import com.crow.modbus.tools.toInt32Data
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -44,7 +40,8 @@ class MainActivity : AppCompatActivity() {
         mKModbusRtu.cancelAll()
         mKModbusAscii.cancelAll()
 
-        // When you clear all tasks, kmodbus TCP will be forcibly terminated even if the reconnection is configured
+        // When you clear all tasks, kmodbus tcp be forcibly terminated even if the reconnection is configured
+        // When you use a tcp instance to start multiple clients and servers, and you call cancelAll, all tasks in the instance will be stopped
         mKModbusTcpClient.cancelAll()
         mKModbusTcpServer.cancelAll()
     }
@@ -53,27 +50,45 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(mBinding.root)
 
+/*
+        // You can start a server with multiple ports from a single TCP instance
+        initTcpSlave(port = 8080)
+        initTcpSlave(port = 8081, isCancelDelay = true)
+
+        // You can start tasks with different IP addresses or ports through a TCP instance
+        initTcpMaster("192.168.1.102", 8080)
+        initTcpMaster("192.168.1.102", 8081, isCancelDelay = true)
+
         // You can open different serial ports by constructing multiple KModbusRtu, the same goes for TCP and ASCII
-//        initRtuSlave(ttySNumber = 0, BaudRate.S_9600)
-//        initTcpSlave(port = 8080)
         initRtuMaster(ttySNumber = 3, BaudRate.S_9600)
-//        initAsciiMaster(ttySNumber = 3, BaudRate.S_9600)
+        initRtuSlave(ttySNumber = 0, BaudRate.S_9600)
+        initAsciiMaster(ttySNumber = 3, BaudRate.S_9600)
+*/
 
 
         // kmodbus tcp msater support multiple client connection
-//        initTcpMaster(host = "192.168.1.102", port = 8080)
-//        initTcpMaster(host = "192.168.1.102", port = 8080)
-//        initTcpMaster(host = "192.168.1.102", port = 8080)
-//        val clinetJob = initTcpMaster(host = "192.168.1.102", port = 8080)
-//        lifecycleScope.launch {
-//            delay(3000L)
-//
-//            // If you cancel the kmodbus TCP job, regardless of whether you have the reconnection mechanism enabled or not, this will be invalid and the TCP connection will be closed
-//            clinetJob.cancel()
-//        }
+/*
+        initTcpMaster(host = "192.168.1.102", port = 8080)
+        initTcpMaster(host = "192.168.1.102", port = 8080)
+        initTcpMaster(host = "192.168.1.102", port = 8080)
+        val clinetJob = initTcpMaster(host = "192.168.1.102", port = 8080)
+        lifecycleScope.launch {
+            delay(3000L)
+
+            // If you cancel the kmodbus TCP job, regardless of whether you have the reconnection mechanism enabled or not, this will be invalid and the TCP connection will be closed
+            clinetJob.cancel()
+        }
+*/
     }
 
+    /**
+     * ⦁ Enable rtu slave mode.
+     *
+     * ⦁ 2024-04-26 09:42:53 周五 上午
+     * @author crowforkotlin
+     */
     private fun initRtuSlave(ttySNumber: Int, baudRate: Int) {
+        // I'm too lazy to continue to optimize for RTU refactoring, so for now I can only set up, listener, and start like this....
         mKModbusRtu.apply {
             openSerialPort(ttysNumber = ttySNumber, baudRate = baudRate, parity = SerialPortParityFunction.NONE, stopBit = 1, dataBit = 8)
 
@@ -95,7 +110,7 @@ class MainActivity : AppCompatActivity() {
                                 "registersVal is $registersVal".info()
                             }
                             else -> {
-                                // TODO Maybe is read...
+                                // TODO Maybe is read error ??? ...
                             }
                         }
                     }
@@ -106,25 +121,79 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun initTcpSlave(port: Int) {
+    /**
+     * ⦁ Enable tcp slave mode
+     *
+     * ⦁ 2024-04-26 09:46:33 周五 上午
+     * @author crowforkotlin
+     */
+    private fun initTcpSlave(port: Int, isCancelDelay: Boolean = false) {
         mKModbusTcpServer.apply{
-            tcpServer(port) { ins, ops ->
-                continuouslyReadData(ins, ops, KModbusType.SLAVE) { slaveResp ->
+            tcpServer(port) { ins, ops, clientJob, serverJob ->
+                continuouslyReadData(ins, ops, clientJob,KModbusType.SLAVE) { slaveResp ->
                     slaveResp.mValues?.let { value ->
                         when(slaveResp.mFunction) {
-                            WRITE_MULTIPLE_COILS -> {
-                                "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList().info()}".info()
+                            KModbusFunction.WRITE_MULTIPLE_COILS -> {
+                                "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList()}".info()
                             }
-                            WRITE_SINGLE_COIL -> {
-                                "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList().info()}".info()
+                            KModbusFunction.WRITE_SINGLE_COIL -> {
+                                "tcp slave resp value : ${value.splitInt8ToBits(reverse = true).toList()}".info()
                             }
                             else -> { }
                         }
                         "tcp slave resp : $slaveResp".info()
                         "--------- tcp slave receive end ---------".info()
                     }
+
+                    // You can cancel the TCP server of the current instance, and the reconnection will be invalid. You have to re-execute the tcpServer function
+                    if (isCancelDelay) {
+                        lifecycleScope.launch {
+                            delay(5000)
+                            serverJob.cancel()
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    /**
+     * ⦁ Enable tcp master
+     *
+     * ⦁ 2024-04-26 10:01:16 周五 上午
+     * @author crowforkotlin
+     */
+    private fun initTcpMaster(host: String, port: Int, isCancelDelay: Boolean = false): Job {
+        mKModbusTcpClient.apply{
+            return tcpClient(KModbusTcpClient.ClientInfo(host, port) { ins, ops, clientInfo, clientJob ->
+                val receiveJob = continuouslyReadData(clientInfo, clientJob, ins, KModbusType.MASTER) { slaveResp ->
+                    runCatching {
+                        val content = slaveResp.mValues.toInt32Data(index = 0, length = 2).toString()
+                        "tcp master port is : ${clientInfo.mPort} \t content is : $content".info()
+                        lifecycleScope.launch {
+                            mBinding.tcp.text = content
+                        }
+                    }
+                }
+                val writeJob = continuouslyWriteData(clientInfo, clientJob, ops, interval = 1000L, timeOut = 1000L) {
+                    listOf(
+                        buildMasterOutput(KModbusFunction.READ_HOLDING_REGISTERS, 1, 5, 1),
+                        buildMasterOutput(KModbusFunction.READ_HOLDING_REGISTERS, 1, 6, 1),
+                        buildMasterOutput(KModbusFunction.READ_HOLDING_REGISTERS, 1, 7, 1)
+                    )
+                }
+                if (isCancelDelay) {
+                    lifecycleScope.launch {
+                        delay(5000)
+
+                        // If you want to cancel a single tcpClient task, you can use clientJob.cancel() in the tcpclient scope
+                        clientJob.cancel()
+                    }
+                }
+
+                // Remember to return your TCP task to the client so that it can handle the exception correctly or reconnect
+                listOf(receiveJob, writeJob)
+            })
         }
     }
 
@@ -138,7 +207,7 @@ class MainActivity : AppCompatActivity() {
                 runCatching {
                     // No matter what data is written, as long as the parsed data is empty, it is incorrect!
                     arrays.info()
-                    val resp: KModbusRtuMasterResp = resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG) ?: return@addOnMasterReceiveListener
+                    val resp: KModbusRtuMasterResp = resolveMasterResp(arrays, ModbusEndian.ABCD) ?: return@addOnMasterReceiveListener
 
                     // Even if the data is parsed, it's possible that mValues will be null, and that's because the modbus slave will return a successful response by default!
                     val content: Long = resp.mValues.toInt32Data(index = 0, length = 2) ?: return@runCatching
@@ -146,11 +215,11 @@ class MainActivity : AppCompatActivity() {
                         mBinding.rtu.text = content.toString()
                     }
                 }
-                "Rtu : ${resolveMasterResp(arrays, ModbusEndian.ARRAY_BIG_BYTE_BIG)}".info()
+                "Rtu : ${resolveMasterResp(arrays, ModbusEndian.ABCD)}".info()
             }
 
             // If you want to poll and write multiple data, you can add the data to the queue in the same way as listOf.
-             setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
+            setOnDataWriteReadyListener { listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 1)) }
 
             // Set the reading behavior to: master mode. If it is slave mode, it means that the data sent by the master station will be read.
             startRepeatReceiveDataTask(kModbusBehaviorType = KModbusType.MASTER)
@@ -163,38 +232,25 @@ class MainActivity : AppCompatActivity() {
                 value = 4
             ))*/
             // Enable polling tasks for writing data, with built-in timeout mechanism
-             startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "Rtu Time out!".info() }
+            startRepeatWriteDataTask(interval = 1000L, timeOut = 1000L) { "Rtu Time out!".info() }
 
             // If you do not enable polling writing, you can also manually control the writing of data yourself.
-           /* mKModbusRtu.writeData(buildMasterOutput(
-                function = KModbusFunction.WRITE_SINGLE_REGISTER,
-                slaveAddress = 6,
-                startAddress = 0,
-                count = 2,
-                value = 0
-            )) */
+            /* mKModbusRtu.writeData(buildMasterOutput(
+                 function = KModbusFunction.WRITE_SINGLE_REGISTER,
+                 slaveAddress = 6,
+                 startAddress = 0,
+                 count = 2,
+                 value = 0
+             )) */
         }
     }
 
-    private fun initTcpMaster(host: String, port: Int): Job {
-        mKModbusTcpClient.apply{
-            return tcpClient(KModbusTcpClient.ClientInfo(host, port) { ins, ops, clientInfo, clientJob ->
-                val receiveJob = continuouslyReadData(clientInfo, clientJob, ins, KModbusType.MASTER) { slaveResp ->
-                    runCatching {
-                        val content = slaveResp.mValues.toStringGB2312(index = 0, length = 5)
-                        lifecycleScope.launch {
-                            mBinding.tcp.text = content
-                        }
-                    }
-                }
-                val writeJob = continuouslyWriteData(clientInfo, clientJob, ops, interval = 1000L, timeOut = 1000L) {
-                    listOf(buildMasterOutput(READ_HOLDING_REGISTERS, 1, 0, 5))
-                }
-                listOf(receiveJob, writeJob)
-            })
-        }
-    }
-
+    /**
+     * ⦁ Enable rtu ascii master
+     *
+     * ⦁ 2024-04-26 10:01:42 周五 上午
+     * @author crowforkotlin
+     */
     private fun initAsciiMaster(ttySNumber: Int, baudRate: Int) {
         mKModbusAscii.apply {
             openSerialPort(ttySNumber, baudRate)

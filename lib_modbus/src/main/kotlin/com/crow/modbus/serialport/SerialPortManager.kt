@@ -131,7 +131,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      * ⦁  2023-09-23 16:02:12 周六 下午
      */
     override  fun closeSerialPort(): Boolean {
-        "◉ 正在关闭串口".info()
+        "closeSerialPort".info()
         return runCatching {
             if (mFileDescriptor != null) close()
             mFileDescriptor = null
@@ -143,7 +143,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
             removeAllOpenFailureListener()
             true
         }
-            .onSuccess { "关闭串口成功".info() }
+            .onSuccess { "closeSerialPort success".info() }
             .onFailure { catch -> "close serial port exception! ${catch.stackTraceToString()}".error() }
             .getOrElse { false }
     }

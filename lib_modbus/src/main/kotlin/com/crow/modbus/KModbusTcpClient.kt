@@ -3,6 +3,7 @@
 package com.crow.modbus
 
 import com.crow.modbus.model.KModbusFunction
+import com.crow.modbus.model.KModbusRetryCancellationException
 import com.crow.modbus.model.KModbusTcpMasterResp
 import com.crow.modbus.model.KModbusType
 import com.crow.modbus.model.ModbusEndian
@@ -14,7 +15,6 @@ import com.crow.modbus.tools.info
 import com.crow.modbus.tools.message
 import com.crow.modbus.tools.readBytes
 import com.crow.modbus.tools.toHexList
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,15 +53,13 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
         val mSuccess: (suspend KModbusTcpClient.(ins: BufferedInputStream, ops: BufferedOutputStream, clientInfo: ClientInfo, job: Job) -> List<Job>)? = null
     )
 
-    class RetryCancellationException : CancellationException()
-
     /**
      * ⦁  事务ID
      *
      * ⦁  2024-01-23 17:57:09 周二 下午
      * @author crowforkotlin
      */
-    private var mTransactionId: Int = 0
+    private var mTransactionId: Short = 32767
     private val mProtocol: Int = 0
 
     private var mWriteJob: Job = Job()
@@ -122,7 +120,7 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                             delay(clientInfo.mRetryDuration)
                             clientInfo.mRetry?.invoke()
                             cancel()
-                            clientJob.cancel(RetryCancellationException())
+                            clientJob.cancel(KModbusRetryCancellationException())
                         }
                     }
             }
@@ -169,7 +167,7 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                             delay(clientInfo.mRetryDuration)
                             clientInfo.mRetry?.invoke()
                             cancel()
-                            clientJob.cancel(RetryCancellationException())
+                            clientJob.cancel(KModbusRetryCancellationException())
                         }
                     }
             }
@@ -199,7 +197,7 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                         delay(clientInfo.mRetryDuration)
                         clientInfo.mRetry?.invoke()
                         cancel()
-                        clientJob.cancel(RetryCancellationException())
+                        clientJob.cancel(KModbusRetryCancellationException())
                     }
                 }
         }
@@ -252,7 +250,7 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                         delay(clientInfo.mRetryDuration)
                         clientInfo.mRetry?.invoke()
                         cancel()
-                        clientJob.cancel(RetryCancellationException())
+                        clientJob.cancel(KModbusRetryCancellationException())
                     }
                 }
         }
@@ -294,7 +292,7 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
                         }
                         jobs?.forEach { it.cancel() }
                         if (mRetryEnable) {
-                            if (cause !is RetryCancellationException) { delay(mRetryDuration) }
+                            if (cause !is KModbusRetryCancellationException) { delay(mRetryDuration) }
                             mRetry?.invoke()
                             cancel()
                             tcpClient(clientInfo)
@@ -327,13 +325,13 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
         count: Int,
         value: Int? = null,
         values: IntArray? = null,
-        transactionId: Int = mTransactionId,
-        endian: ModbusEndian = ModbusEndian.ARRAY_BIG_BYTE_BIG,
+        transactionId: Short = mTransactionId,
+        endian: ModbusEndian = ModbusEndian.ABCD,
     ): ByteArray {
         val pdu = buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values, isTcp = true)
         val size = pdu.size()
         val mbap = BytesOutput()
-        mbap.writeInt16(transactionId)
+        mbap.writeInt16(transactionId.toInt())
         mbap.writeInt16(mProtocol)
         mbap.writeInt16(size + 1)
         mbap.writeInt8(slaveAddress)

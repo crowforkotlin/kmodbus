@@ -46,6 +46,7 @@ private fun monitorTcp(slaveAddr: Int, startAddr: Int, regCount: Int, valueSize:
 }
 
 suspend fun main() = runBlocking {
+
     monitorTcp(1, 0, 4, 4, 0)
     monitorTcp(2, 0, 3, 3, 400)
     coroutineContext.job.join()

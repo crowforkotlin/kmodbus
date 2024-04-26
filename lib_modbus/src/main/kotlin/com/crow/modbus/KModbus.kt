@@ -102,16 +102,16 @@ open class KModbus protected constructor() {
 
     internal fun getArray(array: ByteArray, endian: ModbusEndian) : ByteArray {
         return when (endian) {
-            ModbusEndian.ARRAY_BIG_BYTE_BIG -> array
-            ModbusEndian.ARRAY_LITTLE_BYTE_BIG -> array.reversedArray()
-            ModbusEndian.ARRAY_LITTLE_BYTE_LITTLE -> {
+            ModbusEndian.ABCD -> array
+            ModbusEndian.CDAB -> array.reversedArray()
+            ModbusEndian.DCBA -> {
                 val size = array.size
                 val bytes = ByteArray(size)
                 val indexSize = size - 1
                 array.forEachIndexed { index, byte -> bytes[indexSize - index] = toReverseInt8(byte.toInt()).toByte() }
                 bytes
             }
-            ModbusEndian.ARRAY_BIG_BYTE_LITTLE -> {
+            ModbusEndian.BADC -> {
                 val bytes = ByteArray(array.size)
                 array.forEachIndexed { index, byte -> bytes[index] = toReverseInt8(byte.toInt()).toByte() }
                 bytes

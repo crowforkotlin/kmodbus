@@ -1,30 +1,23 @@
 package com.crow.modbus.model
 
-/*************************
- * @Machine: RedmiBook Pro 15 Win11
- * @Package: com.crow.modbus.serialport
- * @Time: 2023/9/23 14:12
- * @Author: CrowForKotlin
- * @Description:
- * @formatter:on
- **************************/
-
-
 /**
- * 功能码（十进制显示）
+ * ⦁ each words means a byte
+ *
+ * ⦁ 2024-04-26 14:01:39 周五 下午
+ * @author crowforkotlin
  */
 enum class ModbusEndian {
-    // AB CD
-    ARRAY_BIG_BYTE_BIG,
+    // ABCD
+    ABCD,
 
-    // BA DC
-    ARRAY_BIG_BYTE_LITTLE,
+    // BADC
+    BADC,
 
-    // CD AB
-    ARRAY_LITTLE_BYTE_BIG,
+    // CDAB
+    CDAB,
 
-    // DC BA
-    ARRAY_LITTLE_BYTE_LITTLE,;
+    // DCBA
+    DCBA,;
 
 }
 
