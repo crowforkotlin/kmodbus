@@ -11,6 +11,7 @@ import com.crow.modbus.tools.toAsciiHexBytes
 import com.crow.modbus.tools.toHexList
 import com.crow.modbus.tools.toInt16
 import com.crow.modbus.tools.toIntArray
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -44,9 +45,20 @@ private fun monitorTcp(slaveAddr: Int, startAddr: Int, regCount: Int, valueSize:
         })
     }
 }
+suspend fun test() {
 
+}
 suspend fun main() = runBlocking {
 
+    runCatching {
+        launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable -> "12312345345 : ${throwable.stackTraceToString()}".info() }) {
+            ByteArray(-10)
+        }
+    }
+        .onFailure { "123123 : ${it.stackTraceToString()}".info() }
+
+    this.coroutineContext.job.join()
+    return@runBlocking
     monitorTcp(1, 0, 4, 4, 0)
     monitorTcp(2, 0, 3, 3, 400)
     coroutineContext.job.join()

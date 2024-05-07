@@ -1,4 +1,4 @@
-@file:Suppress("SpellCheckingInspection", "unused")
+@file:Suppress("SpellCheckingInspection", "unused", "MemberVisibilityCanBePrivate")
 
 package com.crow.modbus
 
@@ -47,7 +47,7 @@ import kotlin.coroutines.coroutineContext
  * @author crowforkotlin
  * @formatter:on
  */
-class KModbusRtu : KModbus(), ISerialPortExt {
+class KModbusRtu() : KModbus(), ISerialPortExt {
 
     /**
      * ⦁ 从站是否开启响应？
@@ -226,7 +226,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * @author crowforkotlin
      */
     fun startRepeatReceiveDataTask(kModbusBehaviorType: KModbusType) {
-        if (mSerialPortManager.mFileOutputStream == null) {
+        if (mSerialPortManager.mBos == null) {
             "The read stream has not been opened yet. Maybe the serial port is not open?".error()
             return
         }
@@ -259,7 +259,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
      * @author crowforkotlin
      */
     fun startRepeatWriteDataTask(interval: Long, timeOut: Long, timeOutFunc: ((ByteArray) -> Unit)? = null) {
-        if (mSerialPortManager.mFileOutputStream == null) {
+        if (mSerialPortManager.mBos == null) {
             "The write stream has not been opened yet. Maybe the serial port is not open?".error()
             return
         }
@@ -335,6 +335,7 @@ class KModbusRtu : KModbus(), ISerialPortExt {
     ): ByteArray {
         return getArray(toCalculateCRC16(buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values)).toByteArray(), endian)
     }
+
 
     /**
      * ⦁  解析主站接收到的响应数据

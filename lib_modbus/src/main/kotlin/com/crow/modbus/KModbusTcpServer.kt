@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
@@ -29,6 +30,7 @@ import java.io.BufferedOutputStream
 import java.io.IOException
 import java.net.ServerSocket
 import java.net.SocketException
+import java.util.concurrent.Executors
 
 /**
  * ⦁  KModbusTcp
@@ -200,6 +202,10 @@ class KModbusTcpServer(mDispatcher: CoroutineDispatcher = Dispatchers.IO) : KMod
                                 val socketJob = coroutineContext.job
                                 onClientConnected(_ins, _ops, socketJob, serverJob)
                                 socketJob.join()
+                                val scope = CoroutineScope(Executors.newFixedThreadPool(5).asCoroutineDispatcher())
+                                scope.launch {
+
+                                }
                             }
                                 .onFailure { cause -> "kmodbus tcp client cause error : ${cause.stackTraceToString()}".error() }
                             ins?.close()

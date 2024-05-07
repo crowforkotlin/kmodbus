@@ -9,7 +9,6 @@ import com.crow.modbus.tools.error
 import com.crow.modbus.tools.info
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -33,7 +32,7 @@ import java.util.concurrent.Executors
  * @Description: SerialPortManager
  * @formatter:on
  **************************/
-internal open class SerialPortManager internal constructor(): SerialPort(), ISerialPortExt {
+open class SerialPortManager internal constructor(): SerialPort(), ISerialPortExt {
 
     internal interface ICompleteRepeat { suspend fun onComplete(scope: CoroutineScope): Long }
 
@@ -42,8 +41,8 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     internal var  mWriteJob: Job = SupervisorJob()
     internal val mReadContext by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mReadJob + CoroutineExceptionHandler { _, cause -> cause.stackTraceToString().error() }) }
     internal val mWriteContext by lazy { CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher() + mWriteJob + CoroutineExceptionHandler { _, cause  -> cause.stackTraceToString().error() }) }
-    internal var mFileInputStream: BufferedInputStream? = null
-    internal var mFileOutputStream: BufferedOutputStream? = null
+    internal var mBis: BufferedInputStream? = null
+    internal var mBos: BufferedOutputStream? = null
     private var mSuccessListener = arrayListOf<ISerialPortSuccess>()
     private var mFailureListener = arrayListOf<ISerialPortFailure>()
 
@@ -84,7 +83,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     override fun openSerialPort(path: String, baudRate: Int, parity: SerialPortParityFunction, stopBit: Int, dataBit: Int) {
 
         val device = File(path)
-        if (mFileInputStream != null && mFileOutputStream != null) {
+        if (mBis != null && mBos != null) {
             "openSerialPort : 串口已经开启了，请先关闭！".error()
             mFailureListener.forEach { it.onFailure(device, SerialPortState.NO_READ_WRITE_PERMISSION) }
             return
@@ -101,8 +100,8 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
 
         mBaudRate = baudRate
         mFileDescriptor = open(device.absolutePath, baudRate, parity, stopBit, dataBit)
-        mFileInputStream = BufferedInputStream(FileInputStream(mFileDescriptor))
-        mFileOutputStream = BufferedOutputStream(FileOutputStream(mFileDescriptor))
+        mBis = BufferedInputStream(FileInputStream(mFileDescriptor))
+        mBos = BufferedOutputStream(FileOutputStream(mFileDescriptor))
         mSuccessListener.forEach { it.onSuccess(device) }
         "串口已经打开 状态 ：${mFileDescriptor?.valid()}".info()
     }
@@ -135,10 +134,10 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
         return runCatching {
             if (mFileDescriptor != null) close()
             mFileDescriptor = null
-            mFileInputStream?.close()
-            mFileOutputStream?.close()
-            mFileInputStream = null
-            mFileOutputStream = null
+            mBis?.close()
+            mBos?.close()
+            mBis = null
+            mBos = null
             removeAllOpenSuccessListener()
             removeAllOpenFailureListener()
             true
@@ -233,11 +232,11 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
         mReadJob.cancelChildren()
         mReadContext.launch {
             while (isActive) {
-                if (mFileInputStream == null) {
+                if (mBis == null) {
                     "The read stream has not been opened yet. Maybe the serial port is not open?".error()
                     return@launch
                 }
-                runCatching { onRepat(mFileInputStream) }
+                runCatching { onRepat(mBis) }
                     .onFailure { cause -> cause.stackTraceToString().error() }
             }
         }
@@ -246,11 +245,11 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
     internal inline fun onReadEnv(crossinline onRead: suspend (BufferedInputStream?) -> Unit) {
         mReadJob.cancelChildren()
         mReadContext.launch {
-            if (mFileInputStream == null) {
+            if (mBis == null) {
                 "The read stream has not been opened yet. Maybe the serial port is not open?".error()
                 return@launch
             }
-            runCatching { onRead(mFileInputStream) }
+            runCatching { onRead(mBis) }
                 .onFailure { cause -> cause.stackTraceToString().error() }
         }
     }
@@ -262,7 +261,7 @@ internal open class SerialPortManager internal constructor(): SerialPort(), ISer
      * @author crowforkotlin
      */
     open fun writeBytes(bytes: ByteArray): Boolean {
-        mFileOutputStream?.let {
+        mBos?.let {
             it.write(bytes)
             it.flush()
         }

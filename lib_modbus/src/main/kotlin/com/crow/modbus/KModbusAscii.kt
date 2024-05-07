@@ -249,7 +249,7 @@ class KModbusAscii : KModbus(), ISerialPortExt {
      * @author crowforkotlin
      */
     fun startRepeatReceiveDataTask(kModbusType: KModbusType,) {
-        if (mSerialPortManager.mFileOutputStream == null) {
+        if (mSerialPortManager.mBos == null) {
             "The read stream has not been opened yet. Maybe the serial port is not open?".error()
             return
         }
@@ -279,7 +279,7 @@ class KModbusAscii : KModbus(), ISerialPortExt {
 
     @OptIn(InternalCoroutinesApi::class)
     fun startRepeatWriteDataTask(interval: Long, timeOut: Long, timeOutFunc: ((ByteArray) -> Unit)? = null) {
-        if (mSerialPortManager.mFileOutputStream == null) {
+        if (mSerialPortManager.mBos == null) {
             "The write stream has not been opened yet. Maybe the serial port is not open?".error()
             return
         }
