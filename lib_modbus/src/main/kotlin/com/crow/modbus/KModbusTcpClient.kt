@@ -327,8 +327,9 @@ class KModbusTcpClient(private val mDispatcher: CoroutineDispatcher = Dispatcher
         values: IntArray? = null,
         transactionId: Short = mTransactionId,
         endian: ModbusEndian = ModbusEndian.ABCD,
+        isBase1: Boolean = false
     ): ByteArray {
-        val pdu = buildMasterRequestOutput(slaveAddress, function, startAddress, count, value, values, isTcp = true)
+        val pdu = buildMasterRequestOutput(slaveAddress, function, if(isBase1) startAddress - 1 else startAddress, count, value, values, isTcp = true)
         val size = pdu.size()
         val mbap = BytesOutput()
         mbap.writeInt16(transactionId.toInt())
