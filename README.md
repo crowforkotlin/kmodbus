@@ -11,8 +11,7 @@
 ```kotlin
 repositories { mavenCentral() }
 
-// Remote dependencies have not been updated at this time
-implementation("com.kotlincrow.android.component:KModbus:1.1")
+implementation("com.kotlincrow.android.component:KModbus:1.3")
 
 /*
 It is recommended that you use an aar file, which contains the so dynamic library by default! 
