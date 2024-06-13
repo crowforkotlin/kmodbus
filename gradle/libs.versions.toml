@@ -8,7 +8,7 @@ json-moshi = "1.15.1"
 maven = "0.28.0"
 
 # [ https://github.com/Kotlin/kotlinx.coroutines ]
-kotlin-coroutines-core = "1.8.1
+kotlin-coroutines-core = "1.8.1"
 
 # [ https://github.com/Kotlin/kotlinx-datetime ]
 kotlin-datetime = "0.4.1"
