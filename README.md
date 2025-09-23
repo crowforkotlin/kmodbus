@@ -278,4 +278,4 @@ fun main() {
 }
 ```
 
-[Docs Here](https://www.kotlincrow.com/2023/10/07/Modbus/): 
+[Docs Here](https://crowforkotlin.gitlab.io/2023/10/07/%E5%8D%8F%E8%AE%AE/Modbus/): 
